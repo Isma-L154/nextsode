@@ -5,6 +5,7 @@ import {
 	foldLine,
 	googleCalendarUrl,
 	parseTitleParam,
+	subscribeLinks,
 	type CalendarEntry
 } from './calendar';
 
@@ -277,5 +278,44 @@ describe('parseTitleParam', () => {
 		]) {
 			expect(parseTitleParam(bad)).toBeNull();
 		}
+	});
+});
+
+describe('subscribeLinks', () => {
+	const FEED = 'https://nextsode.cloudils.com/calendar/abc123.ics';
+
+	it('hands the feed to Google Calendar', () => {
+		const url = new URL(subscribeLinks(FEED).google);
+
+		expect(url.origin + url.pathname).toBe('https://calendar.google.com/calendar/r');
+		expect(url.searchParams.get('cid')).toBe(FEED);
+	});
+
+	it('encodes the feed so the query cannot be broken by it', () => {
+		// The token is hex today, but the address is built from an origin and a
+		// path and neither is this function's to assume.
+		const awkward = 'https://example.test/calendar/a+b c&d.ics';
+		const url = new URL(subscribeLinks(awkward).google);
+
+		expect(url.searchParams.get('cid')).toBe(awkward);
+		expect(subscribeLinks(awkward).google).not.toContain(' ');
+	});
+
+	it('offers the same feed under the scheme calendar apps answer to', () => {
+		expect(subscribeLinks(FEED).webcal).toBe('webcal://nextsode.cloudils.com/calendar/abc123.ics');
+	});
+
+	it('swaps the scheme on a plain http feed too', () => {
+		// Local development serves the feed over http, and a link that silently
+		// did nothing there would be found late.
+		expect(subscribeLinks('http://localhost:5173/calendar/x.ics').webcal).toBe(
+			'webcal://localhost:5173/calendar/x.ics'
+		);
+	});
+
+	it('changes nothing but the scheme', () => {
+		const { webcal } = subscribeLinks(FEED);
+
+		expect(webcal.slice('webcal:'.length)).toBe(FEED.slice('https:'.length));
 	});
 });

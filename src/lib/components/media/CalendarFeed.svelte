@@ -3,6 +3,7 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import { absorb } from '$lib/forms/feedback';
+	import { subscribeLinks } from '$lib/domain/calendar';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
 	/**
@@ -26,6 +27,7 @@
 	let confirmingReset = $state(false);
 
 	const url = $derived(token ? `${origin}/calendar/${token}.ics` : null);
+	const links = $derived(url ? subscribeLinks(url) : null);
 
 	const feedback = (message: string): SubmitFunction => {
 		return () =>
@@ -78,11 +80,44 @@
 		</form>
 	{:else}
 		<p class="mt-1.5 text-xs text-ink-muted">
-			Add this by URL in your calendar app — in Google Calendar it is
-			<span class="text-ink">Other calendars → From URL</span>.
+			Pick your calendar and confirm — nothing is added until you say so.
 		</p>
 
-		<div class="mt-2.5 flex flex-wrap items-center gap-2">
+		<!--
+			Two links rather than an instruction.
+			
+			This used to read "in Google Calendar it is Other calendars → From URL",
+			which is four steps and a menu most people have never opened. Neither
+			link grants us anything: the calendar app fetches the feed itself, and
+			asks the visitor before adding it.
+		-->
+		<div class="mt-2.5 flex flex-wrap gap-2">
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- resolve() maps this app's own routes; these hand the feed to a calendar app -->
+			<a
+				href={links?.google}
+				target="_blank"
+				rel="noopener noreferrer"
+				class="flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-semibold text-white transition-colors duration-200 hover:bg-brand-hi"
+			>
+				<Icon name="calendar" size={14} /> Google Calendar
+			</a>
+			<!--
+				`webcal:` is what Apple Calendar and Outlook register as handlers for.
+				A desktop with no calendar app installed does nothing with it, which is
+				why it sits beside the Google link and not instead of it.
+			-->
+			<a
+				href={links?.webcal}
+				class="flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-surface-hi px-4 text-xs font-semibold text-ink ring-1 ring-line transition-colors duration-200 ring-inset hover:bg-line"
+			>
+				<Icon name="calendar" size={14} /> Apple or Outlook
+			</a>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
+		</div>
+
+		<p class="mt-3 text-[11px] text-ink-faint">Or add it by URL yourself:</p>
+
+		<div class="mt-1.5 flex flex-wrap items-center gap-2">
 			<!--
 				Readonly rather than plain text: it is selectable, it survives a tap on
 				mobile, and it is what makes the clipboard fallback work.
@@ -98,7 +133,7 @@
 			<button
 				type="button"
 				onclick={copy}
-				class="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl bg-brand px-3.5 text-xs font-semibold text-white transition-colors duration-200 hover:bg-brand-hi"
+				class="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl bg-surface-hi px-3.5 text-xs font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 ring-inset hover:bg-line hover:text-ink"
 			>
 				<Icon name="copy" size={14} /> Copy
 			</button>
