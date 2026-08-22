@@ -243,3 +243,28 @@ export function parseTitleParam(value: string | null): Identifiable | null {
 
 	return { tmdbId, mediaType: match[1] as Identifiable['mediaType'] };
 }
+
+/**
+ * The two one-tap ways to subscribe to a feed, given its address.
+ *
+ * Subscribing used to read: copy this URL, open Google Calendar, find "Other
+ * calendars → From URL", paste. Four steps and a menu most people have never
+ * opened. These are the same thing as a link.
+ *
+ * `google` hands the feed to Google Calendar, which asks the visitor to confirm
+ * before adding anything — no scope, no token, nothing granted to us.
+ *
+ * `webcal` is the same URL under the scheme that calendar apps register
+ * themselves as handlers for. On iOS and macOS it opens Calendar directly;
+ * Outlook takes it too. It does nothing useful on a desktop with no calendar
+ * app installed, which is why it is offered beside the Google link rather than
+ * instead of it — and why the raw URL stays on screen for everything else.
+ */
+export function subscribeLinks(feedUrl: string): { google: string; webcal: string } {
+	return {
+		google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`,
+		// Scheme swap only. Anything cleverer would have to keep a second copy of
+		// the address in step with the first.
+		webcal: feedUrl.replace(/^https?:/, 'webcal:')
+	};
+}
