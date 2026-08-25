@@ -8,9 +8,16 @@ import { error, type RequestEvent } from '@sveltejs/kit';
  * rate-limited API quota on everyone else's behalf. The sign-in flow needs no
  * equivalent: it holds no secret to guess and Google does the authenticating.
  *
- * Cloudflare's binding is documented as approximate rather than exact, and that
- * is the right trade here. The job is to stop a loop draining the quota, not to
- * be strict about somebody's sixty-first search.
+ * Cloudflare's binding is approximate, and it is worth being specific about
+ * how. The count is kept per location and per isolate, not globally — so the
+ * ceiling a caller actually meets depends on how their requests are spread.
+ * Measured against production: ninety requests over one reused connection are
+ * cut off after about fifty, while the same ninety sent as separate
+ * connections land on different isolates and none of them are refused.
+ *
+ * That is the right trade for the job, which is to stop one loop draining a
+ * shared TMDB quota — a loop reuses its connection. It is not a defence
+ * against a distributed caller, and nothing here should be read as one.
  */
 
 /** Requests allowed per key per window; mirrors `wrangler.jsonc`. */
