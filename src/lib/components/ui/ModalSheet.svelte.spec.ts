@@ -207,3 +207,74 @@ describe('ModalSheet drag-to-dismiss', () => {
 		expect(onClose).not.toHaveBeenCalled();
 	});
 });
+
+describe('two sheets swapping places', () => {
+	/**
+	 * Opening a title from inside a person's filmography does not stack sheets —
+	 * it replaces one with the other. For a moment both are mounted, and each
+	 * believes it owns the scroll lock.
+	 *
+	 * The bug that produced these tests: the arriving sheet recorded `hidden` as
+	 * the page's "previous" overflow, because the leaving sheet had not let go
+	 * yet. The leaving sheet then restored the empty string — unlocking the page
+	 * while a dialog was still open — and the arriving sheet, on close, put
+	 * `hidden` back with nothing on screen. The page stayed frozen until reload.
+	 */
+	it('leaves the page scrollable after the second sheet closes', async () => {
+		const first = render(ModalSheet, { label: 'Person', onClose: vi.fn(), children });
+		await tick();
+
+		const second = render(ModalSheet, { label: 'Title', onClose: vi.fn(), children });
+		await tick();
+		first.unmount();
+		await tick();
+
+		// While a sheet is still open the page must stay locked.
+		expect(document.body.style.overflow).toBe('hidden');
+
+		second.unmount();
+		await tick();
+
+		expect(document.body.style.overflow).toBe('');
+	});
+
+	it('stays locked while any sheet is still on screen', async () => {
+		const first = render(ModalSheet, { label: 'Person', onClose: vi.fn(), children });
+		await tick();
+		const second = render(ModalSheet, { label: 'Title', onClose: vi.fn(), children });
+		await tick();
+
+		first.unmount();
+		await tick();
+
+		// The page was unlocked here, with the second sheet open behind it.
+		expect(document.body.style.overflow).toBe('hidden');
+
+		second.unmount();
+		await tick();
+	});
+
+	it('survives opening and closing several in a row', async () => {
+		for (let i = 0; i < 4; i++) {
+			const sheet = render(ModalSheet, { label: `Sheet ${i}`, onClose: vi.fn(), children });
+			await tick();
+			sheet.unmount();
+			await tick();
+			expect(document.body.style.overflow).toBe('');
+		}
+	});
+
+	it('respects an overflow the page already had', async () => {
+		// Nothing sets this today, but restoring a blank string unconditionally
+		// would be the same class of bug in the other direction.
+		document.body.style.overflow = 'clip';
+
+		const sheet = render(ModalSheet, { label: 'Sheet', onClose: vi.fn(), children });
+		await tick();
+		sheet.unmount();
+		await tick();
+
+		expect(document.body.style.overflow).toBe('clip');
+		document.body.style.overflow = '';
+	});
+});
