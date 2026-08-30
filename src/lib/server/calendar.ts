@@ -1,5 +1,4 @@
 import { eq } from 'drizzle-orm';
-import { and, isNull } from 'drizzle-orm';
 import { getDb } from './db';
 import { user, watchlistItem } from './db/schema';
 import type { CalendarEntry } from '$lib/domain/calendar';
@@ -49,10 +48,6 @@ export async function revokeCalendarToken(userId: string): Promise<void> {
  * Returns null for a token that matches nothing — which the route answers with
  * a 404, the same answer it gives a token that never existed. A feed that said
  * "revoked" rather than "not found" would confirm the URL was once real.
- *
- * Archived rows are excluded. Archiving is how somebody says a title is off
- * their list without deleting it, and putting its release in their calendar
- * would be ignoring that.
  */
 export async function loadCalendarEntries(token: string): Promise<CalendarEntry[] | null> {
 	if (!token) return null;
@@ -76,5 +71,5 @@ export async function loadCalendarEntries(token: string): Promise<CalendarEntry[
 			nextSeasonAirDate: watchlistItem.nextSeasonAirDate
 		})
 		.from(watchlistItem)
-		.where(and(eq(watchlistItem.userId, owner.id), isNull(watchlistItem.archivedAt)));
+		.where(eq(watchlistItem.userId, owner.id));
 }

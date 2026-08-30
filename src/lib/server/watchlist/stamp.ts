@@ -3,7 +3,7 @@
  *
  * Preserves an existing timestamp when something is already watched, so
  * re-deriving the flag — which the season refresh does on every visit — cannot
- * silently push the archive countdown back to the start.
+ * silently push the deletion countdown back to the start.
  *
  * Shared by the actions and by the refresh, which is the pairing that made the
  * bug possible in the first place.

@@ -1,9 +1,9 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db';
 import { watchlistItem } from '../db/schema';
 import { clampSeasons, deriveWatched } from '$lib/domain/progress';
 import { carryBookmark } from '$lib/domain/episodes';
-import { isDueForArchive, type ArchiveWindow } from '$lib/domain/archive';
+import { isDueForDeletion, type DeletionWindow } from '$lib/domain/deletion';
 import { resolveSeasonInfo } from './seasons';
 import { watchedStamp } from './stamp';
 import type { WatchlistRow } from './queries';
@@ -13,8 +13,8 @@ import type { WatchlistRow } from './queries';
  *
  * Doing it on read rather than on a schedule is what keeps the app free of a
  * cron job — and means the work only ever happens for lists somebody actually
- * opens. Order matters: seasons refresh first, then archiving. The other way
- * round would tidy away the very show a new season was about to bring back.
+ * opens. Order matters: seasons refresh first, then auto-deletion. The other way
+ * round would delete the very show a new season was about to bring back.
  */
 
 /**
@@ -110,27 +110,34 @@ export async function refreshSeasonData(items: WatchlistRow[]): Promise<Watchlis
 }
 
 /**
- * Archive watched entries whose window has elapsed, returning the patched list.
+ * Delete watched entries whose window has elapsed, returning the surviving list.
  *
  * The eligibility rules, including the one that spares any show with a season
- * still to come, live in `domain/archive` where they are unit-tested.
+ * still to come, live in `domain/deletion` where they are unit-tested. They are
+ * the only thing standing between this statement and somebody's list, which is
+ * why they live somewhere they can be tested without a database.
+ *
+ * The owner is passed rather than inferred, and the statement is scoped by it
+ * even though `ids` already came from that account's own rows. Every other write
+ * in this app carries that scope; a `delete` is the last place to start trusting
+ * an id on its own.
  */
-export async function archiveExpired(
+export async function deleteExpired(
+	userId: string,
 	items: WatchlistRow[],
-	window: ArchiveWindow | null
+	window: DeletionWindow | null
 ): Promise<WatchlistRow[]> {
 	if (window === null) return items;
 
 	const now = new Date();
-	const due = items.filter((item) => isDueForArchive(item, window, now));
+	const due = items.filter((item) => isDueForDeletion(item, window, now));
 	if (due.length === 0) return items;
 
 	const ids = due.map((item) => item.id);
 	await getDb()
-		.update(watchlistItem)
-		.set({ archivedAt: now })
-		.where(inArray(watchlistItem.id, ids));
+		.delete(watchlistItem)
+		.where(and(eq(watchlistItem.userId, userId), inArray(watchlistItem.id, ids)));
 
-	const archived = new Set(ids);
-	return items.map((item) => (archived.has(item.id) ? { ...item, archivedAt: now } : item));
+	const deleted = new Set(ids);
+	return items.filter((item) => !deleted.has(item.id));
 }

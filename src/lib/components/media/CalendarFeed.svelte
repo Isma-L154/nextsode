@@ -10,7 +10,7 @@
 	 * Subscribing a calendar app to everything still to come.
 	 *
 	 * It sits in Upcoming, the one tab where the date is already the content, on
-	 * the same reasoning as the auto-archive control: a setting met where it
+	 * the same reasoning as the auto-delete control: a setting met where it
 	 * applies needs no explaining, and a settings screen for two of them would be
 	 * more navigation than feature.
 	 */

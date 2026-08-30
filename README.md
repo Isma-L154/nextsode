@@ -24,7 +24,7 @@
 - **Season and episode tracking** — a bookmark down to the episode, and nothing that has not aired can be ticked off, so a show is never marked watched ahead of broadcast. Finishing the aired seasons marks you _caught up_, and a new season brings the show back on its own. ([design notes](docs/season-progress.md))
 - **Where to watch** — streaming, rental and purchase options for your country.
 - **Coming soon** — pending films and seasons grouped by how soon they arrive.
-- **Auto-archive** — optionally tidy watched titles away after 7, 30 or 90 days. Archived, never deleted.
+- **Auto-delete** — optionally clear watched titles off your list after 7, 30 or 90 days. Off by default, each card warns you for the last week with a one-tap **Keep**, and anything with a new season on the way is never touched.
 
 ## How it works
 
@@ -42,7 +42,7 @@ it.
 Two conventions carry most of the codebase: decision logic lives in
 `src/lib/domain` as pure functions with their own unit tests, and anything under
 `src/lib/server` can never reach the browser. Upkeep (refreshing season data,
-archiving expired titles) runs on page load rather than on a timer, so there is
+deleting expired titles) runs on page load rather than on a timer, so there is
 no cron job to operate.
 
 **Stack:** SvelteKit 5 · TypeScript · Tailwind 4 · Drizzle + Turso (libSQL) ·
