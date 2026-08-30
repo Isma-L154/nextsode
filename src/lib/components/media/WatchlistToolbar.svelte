@@ -46,12 +46,7 @@
 		...(counts.upcoming > 0
 			? [{ value: 'upcoming', label: 'Upcoming', count: counts.upcoming }]
 			: []),
-		{ value: 'watched', label: 'Watched', count: counts.watched },
-		// Only exists once something has been tidied away; until then it would be a
-		// tab advertising a concept the user has not met yet.
-		...(counts.archived > 0
-			? [{ value: 'archived', label: 'Archived', count: counts.archived }]
-			: [])
+		{ value: 'watched', label: 'Watched', count: counts.watched }
 	]);
 </script>
 

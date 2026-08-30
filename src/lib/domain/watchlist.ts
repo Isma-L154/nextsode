@@ -23,13 +23,11 @@ export interface WatchlistEntry {
 	/** The next season still to premiere; null when there is none. */
 	nextSeasonNumber: number | null;
 	nextSeasonAirDate: string | null;
-	/** Set once auto-archiving has tidied this away; null while it is on the list. */
-	archivedAt: Date | null;
 }
 
 /** Current view options coming from the UI controls. */
 export interface WatchlistView {
-	/** 'all' | 'toWatch' | 'inProgress' | 'upcoming' | 'watched' | 'archived' */
+	/** 'all' | 'toWatch' | 'inProgress' | 'upcoming' | 'watched' */
 	status: string;
 	/** 'all' | 'movie' | 'tv' */
 	type: string;
@@ -55,16 +53,6 @@ export function applyWatchlistView<T extends WatchlistEntry>(
 	const query = view.query.trim().toLowerCase();
 
 	const filtered = items.filter((item) => {
-		/**
-		 * Archived entries appear in exactly one place, and every other view is
-		 * blind to them. Anything less than that and tidying a title away would
-		 * only half-work — it would vanish from "Watched" but still turn up under a
-		 * type filter or a search, which is worse than not tidying it at all.
-		 */
-		const archived = item.archivedAt !== null;
-		if (view.status === 'archived') return archived && matchesRest(item);
-		if (archived) return false;
-
 		const matchesStatus =
 			view.status === 'all' ||
 			(view.status === 'toWatch' && !item.watched) ||
@@ -108,9 +96,8 @@ export function isInProgress(item: WatchlistEntry): boolean {
 /**
  * Count how many entries are in each status bucket (for the tab badges).
  *
- * Every count except `archived` is over the *active* list, matching what the
- * corresponding tab will actually show — a badge that counts rows the tab then
- * filters out is just a lie with a number on it.
+ * Every count is over the same list the corresponding tab will show — a badge
+ * that counts rows the tab then filters out is just a lie with a number on it.
  */
 export function countByStatus(
 	items: readonly WatchlistEntry[],
@@ -121,24 +108,16 @@ export function countByStatus(
 	inProgress: number;
 	upcoming: number;
 	watched: number;
-	archived: number;
 } {
 	let watched = 0;
 	let inProgress = 0;
 	let upcoming = 0;
-	let archived = 0;
-	let active = 0;
 
 	for (const item of items) {
-		if (item.archivedAt !== null) {
-			archived++;
-			continue;
-		}
-		active++;
 		if (item.watched) watched++;
 		if (isInProgress(item)) inProgress++;
 		if (hasUpcoming(item, now)) upcoming++;
 	}
 
-	return { all: active, toWatch: active - watched, inProgress, upcoming, watched, archived };
+	return { all: items.length, toWatch: items.length - watched, inProgress, upcoming, watched };
 }

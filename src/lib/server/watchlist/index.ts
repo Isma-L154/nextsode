@@ -15,4 +15,4 @@
  */
 export { loadWatchlist, countWatchlist, type WatchlistRow } from './queries';
 export { watchlistActions } from './actions';
-export { refreshSeasonData, archiveExpired } from './upkeep';
+export { refreshSeasonData, deleteExpired } from './upkeep';

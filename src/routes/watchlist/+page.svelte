@@ -12,7 +12,7 @@
 	import WatchlistToolbar from '$lib/components/media/WatchlistToolbar.svelte';
 	import ContinueWatching from '$lib/components/media/ContinueWatching.svelte';
 	import ComingSoon from '$lib/components/media/ComingSoon.svelte';
-	import AutoArchiveControl from '$lib/components/media/AutoArchiveControl.svelte';
+	import AutoDeleteControl from '$lib/components/media/AutoDeleteControl.svelte';
 	import CalendarFeed from '$lib/components/media/CalendarFeed.svelte';
 	import MediaDetailModal from '$lib/components/media/MediaDetailModal.svelte';
 	import Seo from '$lib/components/Seo.svelte';
@@ -233,11 +233,7 @@
 
 		<!-- Shown where it applies: the tab full of the titles it governs. -->
 		{#if statusTab === 'watched'}
-			<AutoArchiveControl
-				current={data.autoArchiveDays}
-				archivedCount={counts.archived}
-				onShowArchived={() => (statusTab = 'archived')}
-			/>
+			<AutoDeleteControl current={data.autoDeleteDays} />
 		{/if}
 
 		{#if visibleItems.length === 0}
@@ -293,13 +289,12 @@
 							<WatchlistCard
 								{item}
 								priority={index < EAGER_POSTERS}
-								archiveWindow={data.autoArchiveDays}
+								deleteWindow={data.autoDeleteDays}
 								onSelect={() => (selected = item)}
 								onToggle={withToast(item.watched ? 'Moved back to your list' : 'Marked as watched')}
 								onSetSeasons={seasonProgressToast(item)}
 								onRemove={withToast(`Removed “${item.title}”`, 'info')}
 								onKeep={withToast(`Keeping “${item.title}” on your list`, 'info')}
-								onRestore={withToast(`Restored “${item.title}”`)}
 							/>
 						</div>
 					{/each}

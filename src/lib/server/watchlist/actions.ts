@@ -10,7 +10,7 @@ import {
 	normalizeTotalSeasons
 } from '$lib/domain/progress';
 import { resolveEpisodeTarget, seasonBoundary } from '$lib/domain/episodes';
-import { normalizeArchiveWindow } from '$lib/domain/archive';
+import { normalizeDeletionWindow } from '$lib/domain/deletion';
 import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from './seasons';
 import { watchedStamp } from './stamp';
 import { issueCalendarToken, revokeCalendarToken } from '../calendar';
@@ -195,45 +195,24 @@ export const watchlistActions = {
 	},
 
 	/**
-	 * Choose how long a watched title stays before it is archived, or turn the
+	 * Choose how long a watched title stays before it is deleted, or turn the
 	 * whole thing off.
 	 *
 	 * Anything that is not one of the offered windows is stored as null — "off" —
 	 * rather than rejected, because the failure mode of a bad value here is
-	 * someone's list being tidied on a schedule they never picked.
+	 * someone's list emptying itself on a schedule they never picked.
 	 */
-	setAutoArchive: async ({ request, locals }) => {
+	setAutoDelete: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
 		const form = await request.formData();
-		const days = normalizeArchiveWindow(form.get('days'));
+		const days = normalizeDeletionWindow(form.get('days'));
 
-		await getDb().update(user).set({ autoArchiveDays: days }).where(eq(user.id, locals.user.id));
-		return { autoArchiveDays: days };
+		await getDb().update(user).set({ autoDeleteDays: days }).where(eq(user.id, locals.user.id));
+		return { autoDeleteDays: days };
 	},
 
-	/** Bring an archived title back onto the list. */
-	restore: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		if (!id) return fail(400, { message: 'Missing id.' });
-
-		/**
-		 * The watched clock restarts on restore. Otherwise a title pulled back would
-		 * still be weeks overdue and get archived again on the very next page load —
-		 * which reads as the restore having silently failed.
-		 */
-		await getDb()
-			.update(watchlistItem)
-			.set({ archivedAt: null, watchedAt: new Date() })
-			.where(ownedRow(id, locals.user.id));
-
-		return { restored: true };
-	},
-
-	/** Reset the archive countdown for a title without changing anything else. */
+	/** Reset the deletion countdown for a title without changing anything else. */
 	keepLonger: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 

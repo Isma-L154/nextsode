@@ -132,16 +132,6 @@ describe('loadCalendarEntries', () => {
 		expect(await loadCalendarEntries(token)).toEqual([]);
 	});
 
-	it('leaves archived titles out', async () => {
-		const token = await issueCalendarToken('user-1');
-		await saveTitle('user-1', { title: 'Kept' });
-		await saveTitle('user-1', { title: 'Tidied', tmdbId: 2, archivedAt: new Date() });
-
-		// Archiving is how somebody says a title is off their list without
-		// deleting it. Putting its release in their calendar would ignore that.
-		expect((await loadCalendarEntries(token))?.map((e) => e.title)).toEqual(['Kept']);
-	});
-
 	it('carries the fields an event is built from', async () => {
 		const token = await issueCalendarToken('user-1');
 		await saveTitle('user-1', {

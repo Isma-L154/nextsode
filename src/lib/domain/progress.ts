@@ -9,7 +9,7 @@ import type { MediaType } from '../types';
  * show it collapses "halfway through season 3" into a state that is simply
  * wrong. This module counts seasons; `domain/episodes` refines the position
  * inside the one in progress, and defers to the count kept here for everything
- * coarser — caught-up, archiving, the upcoming view.
+ * coarser — caught-up, auto-deletion, the upcoming view.
  *
  * The ceiling is the number of seasons that have *aired*, never the number that
  * exist. TMDB counts announced seasons, so measuring against the total let you

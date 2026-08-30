@@ -30,7 +30,7 @@ async function seedTwoAccounts() {
 		{ userId: 'alice', tmdbId: 2, mediaType: 'tv', title: 'Alice Two' },
 		{ userId: 'bob', tmdbId: 3, mediaType: 'movie', title: 'Bob One' },
 		{ userId: 'bob', tmdbId: 4, mediaType: 'tv', title: 'Bob Two' },
-		{ userId: 'bob', tmdbId: 5, mediaType: 'movie', title: 'Bob Archived', archivedAt: new Date() }
+		{ userId: 'bob', tmdbId: 5, mediaType: 'movie', title: 'Bob Three' }
 	]);
 }
 
@@ -46,13 +46,11 @@ describe('loadWatchlist', () => {
 		expect(titles).toEqual(['Alice One', 'Alice Two']);
 	});
 
-	it('returns nothing belonging to anyone else, archived rows included', async () => {
+	it('returns nothing belonging to anyone else', async () => {
 		const rows = await loadWatchlist('alice');
 
-		// Archived rows are returned to their owner by design, which makes them the
-		// easiest kind to forget when scoping.
 		expect(rows.every((row) => row.userId === 'alice')).toBe(true);
-		expect(rows.map((row) => row.title)).not.toContain('Bob Archived');
+		expect(rows.map((row) => row.title)).not.toContain('Bob Three');
 	});
 
 	it('gives each account its own list, not a shared one', async () => {
@@ -84,10 +82,10 @@ describe('countWatchlist', () => {
 		expect(await countWatchlist('alice')).toBe(2);
 	});
 
-	it('excludes archived rows, and still only counts one account', async () => {
-		// Bob owns three rows, one archived. A count that ignored the owner would
-		// read 4 here, and a count that ignored archiving would read 3.
-		expect(await countWatchlist('bob')).toBe(2);
+	it('counts one account s rows, never the whole table', async () => {
+		// Bob owns three rows and Alice two. A count that ignored the owner would
+		// read 5 here.
+		expect(await countWatchlist('bob')).toBe(3);
 	});
 
 	it('counts zero for an unknown id rather than everything', async () => {

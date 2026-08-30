@@ -11,7 +11,8 @@ import type { MediaType } from '../types';
  * on every list render, to describe a way almost nobody watches television.
  *
  * The position is stored as (`seasonsSeen`, `episodesIntoSeason`), reusing the
- * season counter that already drives caught-up, archiving and the upcoming view.
+ * season counter that already drives caught-up, auto-deletion and the upcoming
+ * view.
  * Season progress therefore stays exactly as correct as before; episodes only
  * add resolution inside the season in progress.
  */

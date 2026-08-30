@@ -2,13 +2,13 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
 import {
-	archiveExpired,
+	deleteExpired,
 	loadWatchlist,
 	refreshSeasonData,
 	watchlistActions,
 	type WatchlistRow
 } from '$lib/server/watchlist';
-import { normalizeArchiveWindow } from '$lib/domain/archive';
+import { normalizeDeletionWindow } from '$lib/domain/deletion';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -21,26 +21,27 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Typed rather than a bare `[]`: an untyped empty array widens the union the
 	// page sees to `never[]`, which breaks inference on every helper downstream.
 	if (!locals.user) {
-		return { items: [] as WatchlistRow[], autoArchiveDays: null, calendarToken: null };
+		return { items: [] as WatchlistRow[], autoDeleteDays: null, calendarToken: null };
 	}
 
 	const [row] = await getDb()
-		.select({ autoArchiveDays: user.autoArchiveDays, calendarToken: user.calendarToken })
+		.select({ autoDeleteDays: user.autoDeleteDays, calendarToken: user.calendarToken })
 		.from(user)
 		.where(eq(user.id, locals.user.id))
 		.limit(1);
-	const autoArchiveDays = normalizeArchiveWindow(row?.autoArchiveDays);
+	const autoDeleteDays = normalizeDeletionWindow(row?.autoDeleteDays);
 
 	/**
 	 * Two pieces of upkeep, both on the read path so there is no scheduled job to
-	 * own. Season data is resolved first because archiving reads it: a show that
-	 * just gained a season must stop being eligible *before* the archive rule
-	 * looks at it, or being caught up would tidy away the very title whose next
+	 * own. Season data is resolved first because auto-deletion reads it: a show
+	 * that just gained a season must stop being eligible *before* the deletion
+	 * rule looks at it, or being caught up would destroy the very title whose next
 	 * season is now airing.
 	 */
-	const items = await archiveExpired(
+	const items = await deleteExpired(
+		locals.user.id,
 		await refreshSeasonData(await loadWatchlist(locals.user.id)),
-		autoArchiveDays
+		autoDeleteDays
 	);
 
 	/**
@@ -49,7 +50,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	 * It is only ever sent to its own owner — this loader returns nothing at all
 	 * without a session.
 	 */
-	return { items, autoArchiveDays, calendarToken: row?.calendarToken ?? null };
+	return { items, autoDeleteDays, calendarToken: row?.calendarToken ?? null };
 };
 
 export const actions: Actions = watchlistActions;
