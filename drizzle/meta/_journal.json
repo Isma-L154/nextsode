@@ -57,6 +57,13 @@
       "when": 1788063546144,
       "tag": "0007_delete_instead_of_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788073017851,
+      "tag": "0008_restart_overdue_countdowns",
+      "breakpoints": true
     }
   ]
 }

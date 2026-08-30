@@ -13,7 +13,10 @@ import { hasUpcoming, type UpcomingEntry } from './upcoming';
  *
  * Deletion is not undoable, so the rules are deliberately conservative — a title
  * has to be watched, have a timestamp to measure from, and have nothing still to
- * come. The feature is off by default and says what it does before it does it.
+ * come. The feature is off by default and says what it does before it does it:
+ * picking a window restarts the clock on anything already past it, so no title
+ * is ever destroyed without having spent its last week saying so on the card.
+ * See `setAutoDelete`.
  *
  * Everything here is pure so the rules can be tested without a database — which
  * matters more than it did under archiving, because a wrong rule now costs the

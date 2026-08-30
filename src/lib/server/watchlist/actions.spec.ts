@@ -211,6 +211,88 @@ describe('setEpisode', () => {
 	});
 });
 
+/**
+ * Turning the feature on must not delete anything on the spot.
+ *
+ * The countdown is only half of it; the other half is the week of warning the
+ * card shows before the end. A title watched two months before you picked a
+ * window would run out the instant you picked it — destroyed having never once
+ * said it was going to be. So the window means "from here".
+ */
+describe('setAutoDelete', () => {
+	const DAY = 86_400_000;
+	const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
+	/** Whole days since the row was stamped watched. */
+	const ageInDays = async (id = 'item-1') =>
+		Math.round((Date.now() - (await read(id)).watchedAt!.getTime()) / DAY);
+
+	it('stores an offered window', async () => {
+		expect(await call('setAutoDelete', { days: '30' })).toEqual({ autoDeleteDays: 30 });
+	});
+
+	it('stores anything unrecognised as off rather than rejecting it', async () => {
+		expect(await call('setAutoDelete', { days: '3' })).toEqual({ autoDeleteDays: null });
+	});
+
+	it('restarts the clock on a title already past the new window', async () => {
+		await saveShow({ watched: true, watchedAt: daysAgo(60) });
+
+		await call('setAutoDelete', { days: '30' });
+
+		expect(await ageInDays()).toBe(0);
+	});
+
+	it('leaves a title that is still inside the window on its original clock', async () => {
+		await saveShow({ watched: true, watchedAt: daysAgo(10) });
+
+		await call('setAutoDelete', { days: '30' });
+
+		expect(await ageInDays()).toBe(10);
+	});
+
+	// Shortening is the same hazard as switching it on: rows that were comfortably
+	// inside the old window can be past the new one before the page repaints.
+	it('restarts the clock when the window is shortened past a title', async () => {
+		await saveShow({ watched: true, watchedAt: daysAgo(20) });
+		await call('setAutoDelete', { days: '30' });
+
+		await call('setAutoDelete', { days: '7' });
+
+		expect(await ageInDays()).toBe(0);
+	});
+
+	it('never touches an unwatched title, which has no clock to restart', async () => {
+		await saveShow({ watched: false, watchedAt: null });
+
+		await call('setAutoDelete', { days: '7' });
+
+		expect((await read()).watchedAt).toBeNull();
+	});
+
+	it('changes nothing when the feature is turned off', async () => {
+		await saveShow({ watched: true, watchedAt: daysAgo(60) });
+
+		await call('setAutoDelete', { days: '' });
+
+		expect(await ageInDays()).toBe(60);
+	});
+
+	it('leaves another account s overdue titles alone', async () => {
+		await seedUser(harness.db, { id: 'user-2', googleId: 'g-2', email: 'two@example.test' });
+		await saveShow({
+			id: 'item-2',
+			userId: 'user-2',
+			tmdbId: 2,
+			watched: true,
+			watchedAt: daysAgo(60)
+		});
+
+		await call('setAutoDelete', { days: '30' });
+
+		expect(await ageInDays('item-2')).toBe(60);
+	});
+});
+
 describe('ownership', () => {
 	/**
 	 * Item ids travel through the browser as form fields, so knowing one must not
