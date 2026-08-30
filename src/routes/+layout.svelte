@@ -24,7 +24,7 @@
 	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 </svelte:head>
 
-<AppShell user={data.user} authAvailable={data.authAvailable} watchlistCount={data.watchlistCount}>
+<AppShell user={data.user} authAvailable={data.authAvailable} toWatchCount={data.toWatchCount}>
 	{@render children()}
 </AppShell>
 

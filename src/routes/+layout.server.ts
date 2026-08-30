@@ -1,15 +1,16 @@
 import { isGoogleAuthConfigured } from '$lib/server/oauth';
-import { countWatchlist } from '$lib/server/watchlist';
+import { countToWatch } from '$lib/server/watchlist';
 import type { LayoutServerLoad } from './$types';
 
 /**
  * Shell-level data: who is signed in, whether sign-in is even possible on this
- * deployment, and how many titles are saved.
+ * deployment, and how many titles are still to watch.
  *
  * The count belongs here rather than on a page because the navigation badge is
  * part of the shell — it has to be right on Discover too, where the list itself
  * is never loaded. It is a single indexed `count(*)`, not a second fetch of the
- * list.
+ * list, and it re-runs on every enhanced form submission, which is what keeps
+ * the badge honest the moment something is ticked off.
  */
 /**
  * Which country's streaming offers to show.
@@ -32,7 +33,7 @@ export const load: LayoutServerLoad = async ({ locals, request, url }) => {
 	return {
 		user: locals.user,
 		authAvailable: isGoogleAuthConfigured(),
-		watchlistCount: locals.user ? await countWatchlist(locals.user.id) : 0,
+		toWatchCount: locals.user ? await countToWatch(locals.user.id) : 0,
 		country: resolveCountry(request),
 		/**
 		 * Where this deployment lives, for canonical URLs and share cards.
