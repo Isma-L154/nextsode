@@ -22,12 +22,12 @@
 	interface Props {
 		user: SessionUser | null;
 		authAvailable: boolean;
-		/** Saved-title count, shown as a badge on the My List tab. */
-		watchlistCount: number;
+		/** How many titles are still to watch, badged on the My List tab. */
+		toWatchCount: number;
 		children: Snippet;
 	}
 
-	let { user, authAvailable, watchlistCount, children }: Props = $props();
+	let { user, authAvailable, toWatchCount, children }: Props = $props();
 
 	interface NavItem {
 		href: '/' | '/watchlist';
@@ -35,11 +35,19 @@
 		icon: IconName;
 		/** Rendered as a badge; omitted when zero. */
 		badge?: number;
+		/** What the badge counts, for anyone who cannot see it sitting on a tab. */
+		badgeLabel?: string;
 	}
 
 	const navItems = $derived<NavItem[]>([
 		{ href: '/', label: 'Discover', icon: 'compass' },
-		{ href: '/watchlist', label: 'My List', icon: 'bookmark', badge: watchlistCount }
+		{
+			href: '/watchlist',
+			label: 'My List',
+			icon: 'bookmark',
+			badge: toWatchCount,
+			badgeLabel: 'to watch'
+		}
 	]);
 
 	const currentPath = $derived(page.url.pathname);
@@ -50,13 +58,16 @@
 	}
 </script>
 
-{#snippet badge(count: number | undefined, active: boolean)}
+{#snippet badge(count: number | undefined, label: string | undefined, active: boolean)}
 	{#if count}
 		<span
 			class="rounded-full px-1.5 py-px text-[10px] leading-tight font-bold tabular-nums transition-colors duration-200
 				{active ? 'bg-brand text-white' : 'bg-surface-hi text-ink-muted'}"
 		>
 			{count > 99 ? '99+' : count}
+			<!-- A bare number next to a tab name reads as "My List 4", which says
+			     nothing about what the four are. -->
+			{#if label}<span class="sr-only">{label}</span>{/if}
 		</span>
 	{/if}
 {/snippet}
@@ -110,7 +121,7 @@
 							>
 								<Icon name={item.icon} size={17} />
 								{item.label}
-								{@render badge(item.badge, active)}
+								{@render badge(item.badge, item.badgeLabel, active)}
 							</a>
 						</li>
 					{/each}
@@ -165,6 +176,7 @@
 									class="absolute -top-0.5 -right-1 h-2 w-2 rounded-full border-2 border-canvas
 										{active ? 'bg-brand-hi' : 'bg-ink-faint'}"
 								></span>
+								<span class="sr-only">{item.badge} {item.badgeLabel ?? ''}</span>
 							{/if}
 						</span>
 						{item.label}

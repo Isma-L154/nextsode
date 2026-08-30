@@ -18,7 +18,7 @@ import { watchlistItem } from '../db/schema';
 let harness: TestDatabase;
 vi.mock('../db', () => ({ getDb: () => harness.db }));
 
-const { countWatchlist, loadWatchlist } = await import('./queries');
+const { countToWatch, loadWatchlist } = await import('./queries');
 
 /** Both accounts, each with rows, so an unscoped query has something to leak. */
 async function seedTwoAccounts() {
@@ -30,7 +30,7 @@ async function seedTwoAccounts() {
 		{ userId: 'alice', tmdbId: 2, mediaType: 'tv', title: 'Alice Two' },
 		{ userId: 'bob', tmdbId: 3, mediaType: 'movie', title: 'Bob One' },
 		{ userId: 'bob', tmdbId: 4, mediaType: 'tv', title: 'Bob Two' },
-		{ userId: 'bob', tmdbId: 5, mediaType: 'movie', title: 'Bob Three' }
+		{ userId: 'bob', tmdbId: 5, mediaType: 'movie', title: 'Bob Watched', watched: true }
 	]);
 }
 
@@ -50,7 +50,7 @@ describe('loadWatchlist', () => {
 		const rows = await loadWatchlist('alice');
 
 		expect(rows.every((row) => row.userId === 'alice')).toBe(true);
-		expect(rows.map((row) => row.title)).not.toContain('Bob Three');
+		expect(rows.map((row) => row.title)).not.toContain('Bob Watched');
 	});
 
 	it('gives each account its own list, not a shared one', async () => {
@@ -77,18 +77,30 @@ describe('loadWatchlist', () => {
 	});
 });
 
-describe('countWatchlist', () => {
+describe('countToWatch', () => {
 	it('counts only the asking account', async () => {
-		expect(await countWatchlist('alice')).toBe(2);
+		expect(await countToWatch('alice')).toBe(2);
 	});
 
-	it('counts one account s rows, never the whole table', async () => {
-		// Bob owns three rows and Alice two. A count that ignored the owner would
-		// read 5 here.
-		expect(await countWatchlist('bob')).toBe(3);
+	/**
+	 * The badge is a number you are meant to act on, so a title you have already
+	 * finished must not be in it. Bob owns three rows, one of them watched: a
+	 * count that ignored the owner would read 5, and one that ignored `watched`
+	 * would read 3.
+	 */
+	it('leaves watched titles out, and still only counts one account', async () => {
+		expect(await countToWatch('bob')).toBe(2);
+	});
+
+	it('reaches zero for an account that has watched everything', async () => {
+		await harness.db.update(watchlistItem).set({ watched: true });
+
+		// Not "no rows" — the list is still full, there is just nothing left to do
+		// with it, and the badge disappears rather than showing a stale number.
+		expect(await countToWatch('alice')).toBe(0);
 	});
 
 	it('counts zero for an unknown id rather than everything', async () => {
-		expect(await countWatchlist('no-such-user')).toBe(0);
+		expect(await countToWatch('no-such-user')).toBe(0);
 	});
 });
