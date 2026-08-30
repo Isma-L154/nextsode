@@ -70,8 +70,9 @@
 	</form>
 
 	<p class="w-full text-[11px] text-ink-faint sm:w-auto sm:flex-1">
-		Deleted for good, not archived. Each card warns you for its last week, with a one-tap
-		<span class="font-semibold text-ink-muted">Keep</span> — and anything with a new season coming is
+		Deleted for good, not archived. The countdown starts when you pick a window, and each card warns
+		you for its last week with a one-tap
+		<span class="font-semibold text-ink-muted">Keep</span>. Anything with a new season coming is
 		never touched.
 	</p>
 </div>
