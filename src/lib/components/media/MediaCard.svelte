@@ -43,6 +43,16 @@
 		priority?: boolean;
 		/** When provided, the poster and title become clickable to open details. */
 		onSelect?: () => void;
+		/**
+		 * Where the poster and title lead, when following the tile means going
+		 * somewhere rather than opening a sheet over what is already here.
+		 *
+		 * A real anchor rather than a button that navigates, because a grid of
+		 * links is a grid people open in background tabs — which is precisely what
+		 * somebody does with a list they have been sent. Ignored when `onSelect` is
+		 * given; a tile has one behaviour.
+		 */
+		href?: string;
 		/** Action controls rendered in the card footer (buttons, forms, badges). */
 		actions?: Snippet;
 	}
@@ -58,8 +68,21 @@
 		upcomingSeason = null,
 		priority = false,
 		onSelect,
+		href,
 		actions
 	}: Props = $props();
+
+	/** Which of the two follow behaviours this tile has, if either. */
+	const interactive = $derived(Boolean(onSelect || href));
+
+	/**
+	 * The title's own styling, shared by the button and the anchor forms of it.
+	 *
+	 * Named rather than repeated: the two differ only in which element they are,
+	 * and a class list copied into both is one that will be edited in one.
+	 */
+	const TITLE_LINK =
+		'-my-3 block cursor-pointer py-3 text-left text-sm leading-snug font-semibold text-ink transition-colors duration-200 hover:text-brand-hi';
 
 	const poster = $derived(posterUrl(posterPath, 'w342'));
 	const year = $derived(releaseYear(releaseDate));
@@ -184,7 +207,7 @@
 			</span>
 		{/if}
 
-		<!-- Transparent overlay button opens the detail view (kept last so it sits
+		<!-- Transparent overlay opens the detail view (kept last so it sits
 		     on top of the badges and the overlay). -->
 		{#if onSelect}
 			<button
@@ -193,11 +216,14 @@
 				aria-label={`View details for ${title}`}
 				class="absolute inset-0 cursor-pointer"
 			></button>
+		{:else if href}
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- `href` is an in-app path built by the caller's route helper; see the prop's doc -->
+			<a {href} aria-label={`View details for ${title}`} class="absolute inset-0"></a>
 		{/if}
 	</div>
 
 	<div class="flex flex-1 flex-col gap-1 p-3">
-		{#if onSelect}
+		{#if interactive}
 			<!--
 				`py-3 -my-3` grows the hit area to the 44px a thumb needs without
 				moving the text a pixel. The poster above is the same action and a
@@ -212,14 +238,16 @@
 				straight over the year underneath, which the negative margin has pulled
 				up to meet it. A padding-free element clips where its text ends.
 			-->
-			<button
-				type="button"
-				onclick={onSelect}
-				{title}
-				class="-my-3 block cursor-pointer py-3 text-left text-sm leading-snug font-semibold text-ink transition-colors duration-200 hover:text-brand-hi"
-			>
-				<span class="line-clamp-2">{title}</span>
-			</button>
+			{#if onSelect}
+				<button type="button" onclick={onSelect} {title} class={TITLE_LINK}>
+					<span class="line-clamp-2">{title}</span>
+				</button>
+			{:else}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- same in-app path as the poster overlay above -->
+				<a {href} {title} class={TITLE_LINK}>
+					<span class="line-clamp-2">{title}</span>
+				</a>
+			{/if}
 		{:else}
 			<h3 class="line-clamp-2 text-sm leading-snug font-semibold text-ink" {title}>{title}</h3>
 		{/if}

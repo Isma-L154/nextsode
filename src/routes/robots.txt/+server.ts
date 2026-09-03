@@ -20,7 +20,10 @@ const RULES = [
 	'# A private list signed in, a sign-in prompt signed out. Neither is a result.',
 	'Disallow: /watchlist',
 	"# One person's calendar feed, reachable only by a secret nobody should publish.",
-	'Disallow: /calendar/'
+	'Disallow: /calendar/',
+	'# A shared list: no password, but sent to particular people. An indexed copy',
+	'# is one its owner cannot revoke.',
+	'Disallow: /share/'
 ];
 
 export const GET: RequestHandler = ({ url, setHeaders }) => {
