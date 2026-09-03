@@ -42,6 +42,7 @@ function showDetails(over: Partial<MediaDetails> = {}): MediaDetails {
 		season: null,
 		productionStatus: 'Returning Series',
 		voteAverage: 8,
+		voteCount: 1200,
 		backdropPath: null,
 		posterPath: null,
 		cast: [],

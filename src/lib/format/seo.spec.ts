@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pageSchema, schemaScript, serializeSchema, siteSchema } from './seo';
+import { pageSchema, schemaScript, serializeSchema, siteSchema, titleSchema } from './seo';
 
 describe('serializeSchema', () => {
 	it('produces JSON a parser reads back unchanged', () => {
@@ -120,5 +120,108 @@ describe('pageSchema', () => {
 		const graph = siteSchema(ORIGIN)['@graph'] as Record<string, unknown>[];
 		const website = graph.find((entry) => entry['@type'] === 'WebSite');
 		expect((terms.isPartOf as { '@id': string })['@id']).toBe(website!['@id']);
+	});
+});
+
+describe('titleSchema', () => {
+	const interstellar = {
+		title: 'Interstellar',
+		mediaType: 'movie' as const,
+		overview: 'A team travels through a wormhole.',
+		releaseDate: '2014-11-05',
+		genres: ['Adventure', 'Drama', 'Science Fiction'],
+		voteAverage: 8.7,
+		voteCount: 36000,
+		image: 'https://image.tmdb.org/t/p/w1280/backdrop.jpg',
+		cast: [{ name: 'Matthew McConaughey' }, { name: 'Anne Hathaway' }]
+	};
+
+	const schema = titleSchema(ORIGIN, '/title/movie/157336-interstellar', interstellar);
+
+	it('describes a film as a Movie and a show as a TVSeries', () => {
+		expect(schema['@type']).toBe('Movie');
+		expect(
+			titleSchema(ORIGIN, '/title/tv/1396-breaking-bad', {
+				...interstellar,
+				mediaType: 'tv'
+			})['@type']
+		).toBe('TVSeries');
+	});
+
+	it('carries the title its own identity and URL', () => {
+		expect(schema['@id']).toBe(`${ORIGIN}/title/movie/157336-interstellar#title`);
+		expect(schema.url).toBe(`${ORIGIN}/title/movie/157336-interstellar`);
+		expect(schema.name).toBe('Interstellar');
+	});
+
+	it('references the same site node every other page names', () => {
+		const graph = siteSchema(ORIGIN)['@graph'] as Record<string, unknown>[];
+		const website = graph.find((entry) => entry['@type'] === 'WebSite');
+		expect((schema.isPartOf as { '@id': string })['@id']).toBe(website!['@id']);
+	});
+
+	// Out of ten, said out loud: read against a five-star scale, 8.7 would be a
+	// claim nobody made.
+	it('states the scale the rating is on, and the votes behind it', () => {
+		expect(schema.aggregateRating).toEqual({
+			'@type': 'AggregateRating',
+			ratingValue: '8.7',
+			bestRating: '10',
+			worstRating: '0',
+			ratingCount: 36000
+		});
+	});
+
+	it('omits the rating when nobody has voted', () => {
+		const unreleased = titleSchema(ORIGIN, '/title/movie/1-x', {
+			...interstellar,
+			voteAverage: 0,
+			voteCount: 0
+		});
+		expect(unreleased).not.toHaveProperty('aggregateRating');
+	});
+
+	// A rating with no count behind it is the shape validators reject outright.
+	it('omits the rating when TMDB gives an average with no votes', () => {
+		const orphaned = titleSchema(ORIGIN, '/title/movie/1-x', {
+			...interstellar,
+			voteCount: 0
+		});
+		expect(orphaned).not.toHaveProperty('aggregateRating');
+	});
+
+	it('names the top of the bill rather than the whole cast', () => {
+		const crowded = titleSchema(ORIGIN, '/title/movie/1-x', {
+			...interstellar,
+			cast: Array.from({ length: 12 }, (_, index) => ({ name: `Actor ${index}` }))
+		});
+		expect(crowded.actor).toHaveLength(5);
+		expect((crowded.actor as { name: string }[])[0]).toEqual({
+			'@type': 'Person',
+			name: 'Actor 0'
+		});
+	});
+
+	it('leaves out what TMDB has no answer for, rather than filling it in', () => {
+		const bare = titleSchema(ORIGIN, '/title/movie/1-x', {
+			title: 'Untitled',
+			mediaType: 'movie',
+			overview: null,
+			releaseDate: null,
+			genres: [],
+			voteAverage: null,
+			voteCount: 0,
+			image: null,
+			cast: []
+		});
+
+		for (const absent of ['description', 'datePublished', 'genre', 'image', 'actor']) {
+			expect(bare).not.toHaveProperty(absent);
+		}
+		expect(bare.name).toBe('Untitled');
+	});
+
+	it('survives being embedded in HTML', () => {
+		expect(() => JSON.parse(serializeSchema(schema))).not.toThrow();
 	});
 });

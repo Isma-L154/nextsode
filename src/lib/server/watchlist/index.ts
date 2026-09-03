@@ -13,6 +13,6 @@
  * Re-exported from here so callers keep importing `$lib/server/watchlist` and
  * never need to know which of those a name came from.
  */
-export { loadWatchlist, countToWatch, type WatchlistRow } from './queries';
+export { loadWatchlist, countToWatch, findSavedEntry, type WatchlistRow } from './queries';
 export { watchlistActions } from './actions';
 export { refreshSeasonData, deleteExpired } from './upkeep';

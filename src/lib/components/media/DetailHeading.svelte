@@ -12,9 +12,17 @@
 	 */
 	interface Props {
 		details: MediaDetails;
+		/**
+		 * Which heading element the title becomes.
+		 *
+		 * `h2` in the sheet, where the page already has an `h1` behind it and a
+		 * second one would leave a screen reader's outline with two documents in
+		 * it. `h1` on the title's own page, where this *is* the document.
+		 */
+		level?: 'h1' | 'h2';
 	}
 
-	let { details }: Props = $props();
+	let { details, level = 'h2' }: Props = $props();
 
 	const poster = $derived(posterUrl(details.posterPath, 'w342'));
 
@@ -41,9 +49,12 @@
 		/>
 	{/if}
 	<div class="min-w-0 flex-1 pt-14">
-		<h2 class="font-display text-xl leading-tight font-extrabold text-ink sm:text-2xl">
+		<svelte:element
+			this={level}
+			class="font-display text-xl leading-tight font-extrabold text-ink sm:text-2xl"
+		>
 			{details.title}
-		</h2>
+		</svelte:element>
 		{#if meta}<p class="mt-1 text-sm text-ink-muted">{meta}</p>{/if}
 		{#if details.voteAverage}
 			<p class="mt-1.5 flex items-center gap-1 text-sm font-bold text-gold">

@@ -33,3 +33,33 @@ export async function countToWatch(userId: string): Promise<number> {
 		.where(and(eq(watchlistItem.userId, userId), eq(watchlistItem.watched, false)));
 	return Number(row?.total ?? 0);
 }
+
+/**
+ * One title's saved row for one user, or null when it is not on their list.
+ *
+ * For the title's public page, which has to decide between "Save" and "Remove"
+ * without loading a whole list to answer a question about a single film. Scoped
+ * by user id like every other read here: the page is public, the answer is not.
+ */
+export async function findSavedEntry(userId: string, tmdbId: number, mediaType: 'movie' | 'tv') {
+	const [row] = await getDb()
+		.select({
+			id: watchlistItem.id,
+			watched: watchlistItem.watched,
+			seasonsSeen: watchlistItem.seasonsSeen,
+			episodesIntoSeason: watchlistItem.episodesIntoSeason,
+			totalSeasons: watchlistItem.totalSeasons,
+			airedSeasons: watchlistItem.airedSeasons
+		})
+		.from(watchlistItem)
+		.where(
+			and(
+				eq(watchlistItem.userId, userId),
+				eq(watchlistItem.tmdbId, tmdbId),
+				eq(watchlistItem.mediaType, mediaType)
+			)
+		)
+		.limit(1);
+
+	return row ?? null;
+}
