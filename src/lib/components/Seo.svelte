@@ -30,9 +30,37 @@
 		indexable?: boolean;
 		/** Structured data for the page, as a plain object. */
 		schema?: Record<string, unknown>;
+		/**
+		 * The card image, absolute, when this page has one of its own.
+		 *
+		 * A title's page does: its backdrop is the single most persuasive thing
+		 * about the link, and a shared film that arrives under the house artwork
+		 * looks like an ad for the app rather than a recommendation of the film.
+		 * Everywhere else falls back to `og.png`, which is what a page with no
+		 * subject of its own should show.
+		 */
+		image?: string | null;
+		/** Alternative text for that image, which the fallback already has. */
+		imageAlt?: string;
+		/**
+		 * The Open Graph type. `video.movie` and `video.tv_show` are the vocabulary
+		 * for exactly what these pages are; anything else on the site is a
+		 * `website`.
+		 */
+		type?: 'website' | 'video.movie' | 'video.tv_show';
 	}
 
-	let { title, description, origin, path, indexable = true, schema }: Props = $props();
+	let {
+		title,
+		description,
+		origin,
+		path,
+		indexable = true,
+		schema,
+		image: pageImage = null,
+		imageAlt = 'Nextsode — never lose your place in a series.',
+		type = 'website'
+	}: Props = $props();
 
 	/** The JSON-LD element, escaped so it cannot end itself. See `$lib/format/seo`. */
 	const schemaJson = $derived(schema ? schemaScript(schema) : null);
@@ -40,7 +68,17 @@
 	const canonical = $derived(`${origin}${path}`);
 	// Absolute, because every consumer of these tags fetches the image from
 	// somewhere that is not this page.
-	const image = $derived(`${origin}/og.png`);
+	const image = $derived(pageImage ?? `${origin}/og.png`);
+
+	/**
+	 * The declared dimensions belong to `og.png` alone.
+	 *
+	 * They exist so a card can be laid out before the image has loaded, and
+	 * repeating them over a TMDB backdrop would be a claim we have not measured —
+	 * worse than saying nothing, because a wrong size is a cropped card. TMDB
+	 * backdrops are 16:9 and every consumer here reads that from the file.
+	 */
+	const ownImage = $derived(pageImage === null);
 </script>
 
 <svelte:head>
@@ -52,15 +90,17 @@
 		<meta name="robots" content="noindex, follow" />
 	{/if}
 
-	<meta property="og:type" content="website" />
+	<meta property="og:type" content={type} />
 	<meta property="og:site_name" content="Nextsode" />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
 	<meta property="og:url" content={canonical} />
 	<meta property="og:image" content={image} />
-	<meta property="og:image:width" content="1200" />
-	<meta property="og:image:height" content="630" />
-	<meta property="og:image:alt" content="Nextsode — never lose your place in a series." />
+	{#if ownImage}
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+	{/if}
+	<meta property="og:image:alt" content={imageAlt} />
 	<meta property="og:locale" content="en_US" />
 
 	<!-- X and several others still read the twitter:* names rather than og:*. -->

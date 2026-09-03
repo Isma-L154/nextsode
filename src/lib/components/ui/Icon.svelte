@@ -44,7 +44,10 @@
 		chevronRight: 'M9 18l6-6-6-6',
 		chevronLeft: 'M15 18l-6-6 6-6',
 		sparkle: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z',
-		copy: 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1ZM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1'
+		copy: 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1ZM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1',
+		// The arrow-out-of-a-box mark, not the three-connected-dots one: iOS uses
+		// this for Share and Android is the only place the dots read as sharing.
+		share: 'M12 15V3M8 7l4-4 4 4M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5'
 	} as const;
 
 	export type IconName = keyof typeof icons;

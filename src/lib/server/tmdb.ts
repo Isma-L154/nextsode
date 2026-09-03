@@ -226,6 +226,7 @@ interface TmdbSeasonDetailRaw {
 	episodes?: TmdbEpisodeRaw[];
 }
 interface TmdbDetailsRaw extends TmdbRawResult {
+	vote_count?: number;
 	genres?: TmdbGenre[];
 	runtime?: number;
 	episode_run_time?: number[];
@@ -432,6 +433,7 @@ export async function getDetails(
 			: null,
 		productionStatus: raw.status?.trim() || null,
 		voteAverage: raw.vote_average ?? null,
+		voteCount: raw.vote_count ?? 0,
 		backdropPath: raw.backdrop_path ?? null,
 		posterPath: raw.poster_path ?? null,
 		cast: (raw.credits?.cast ?? []).slice(0, 12).map((member) => ({

@@ -1,16 +1,13 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import ModalSheet from '$lib/components/ui/ModalSheet.svelte';
-	import DetailArtwork from './DetailArtwork.svelte';
-	import DetailHeading from './DetailHeading.svelte';
-	import ReleaseBanner from './ReleaseBanner.svelte';
+	import TitleDetail from './TitleDetail.svelte';
 	import SeasonPicker from './SeasonPicker.svelte';
 	import EpisodePicker from './EpisodePicker.svelte';
-	import WatchProviders from './WatchProviders.svelte';
 	import SaveControl from './SaveControl.svelte';
-	import AddToCalendar from './AddToCalendar.svelte';
-	import CastRow from './CastRow.svelte';
+	import ShareButton from './ShareButton.svelte';
 	import { getEpisodePosition } from '$lib/domain/episodes';
+	import { titlePath } from '$lib/format/title-url';
 	import { MediaDetailsRequest } from '$lib/stores/details.svelte';
 	import type { MediaResult, MediaType, SavedEntry } from '$lib/types';
 
@@ -18,10 +15,10 @@
 	 * Everything known about one title, and the things you can do to it.
 	 *
 	 * This file is composition and nothing else. The fetch lives in a store, the
-	 * dialog behaviour in `ModalSheet`, and each band of the sheet in its own
-	 * component — the order they appear in below is the argument this file makes:
-	 * progress first, because for a show you are watching that is why the sheet
-	 * was opened; the synopsis is not.
+	 * dialog behaviour in `ModalSheet`, the running order of the content in
+	 * `TitleDetail` — which the title's public page renders too — and what is left
+	 * here is what only the sheet has: progress controls, and the account actions
+	 * underneath.
 	 */
 	interface Props {
 		tmdbId: number;
@@ -32,6 +29,11 @@
 		signedIn: boolean;
 		/** ISO country for streaming availability, resolved at the edge. */
 		country: string;
+		/**
+		 * Absolute origin, so the share link is the one that will be pasted rather
+		 * than a path only this tab can resolve.
+		 */
+		origin: string;
 		/**
 		 * Follow a link out of this sheet into another title's — currently only
 		 * from a cast member's filmography.
@@ -46,7 +48,8 @@
 		onClose: () => void;
 	}
 
-	let { tmdbId, mediaType, saved, signedIn, country, onSelectTitle, onClose }: Props = $props();
+	let { tmdbId, mediaType, saved, signedIn, country, origin, onSelectTitle, onClose }: Props =
+		$props();
 
 	const request = new MediaDetailsRequest();
 
@@ -74,6 +77,8 @@
 	});
 
 	const details = $derived(request.details);
+
+	const shareUrl = $derived(details ? `${origin}${titlePath(details)}` : null);
 </script>
 
 <ModalSheet label={details?.title ?? 'Title details'} {onClose}>
@@ -98,64 +103,36 @@
 			</button>
 		</div>
 	{:else}
-		<DetailArtwork {details} />
+		<TitleDetail {details} {onSelectTitle}>
+			{#snippet progress()}
+				{#if saved && details.mediaType === 'tv' && details.airedSeasons && details.airedSeasons > 1}
+					<SeasonPicker
+						itemId={saved.id}
+						title={details.title}
+						airedSeasons={details.airedSeasons}
+						totalSeasons={details.seasons ?? details.airedSeasons}
+						upcomingSeason={details.upcomingSeason}
+						seasonsSeen={saved.watched ? details.airedSeasons : saved.seasonsSeen}
+					/>
+				{/if}
 
-		<!-- Pulled up over the artwork, which is why the heading carries its own
-		     top padding rather than this container doing it. -->
-		<div class="relative -mt-14 px-4 pb-8 sm:px-6">
-			<DetailHeading {details} />
-			<ReleaseBanner {details} />
-			<!-- Directly under the banner that says it is not out yet: that is the
-			     sentence this answers. -->
-			<AddToCalendar {details} />
+				<!-- The season picker says which season; this says where inside it. -->
+				{#if saved && position?.trackable && details.season}
+					<EpisodePicker
+						itemId={saved.id}
+						title={details.title}
+						season={details.season}
+						episodesWatched={position.episodesWatched}
+					/>
+				{/if}
+			{/snippet}
 
-			{#if saved && details.mediaType === 'tv' && details.airedSeasons && details.airedSeasons > 1}
-				<SeasonPicker
-					itemId={saved.id}
-					title={details.title}
-					airedSeasons={details.airedSeasons}
-					totalSeasons={details.seasons ?? details.airedSeasons}
-					upcomingSeason={details.upcomingSeason}
-					seasonsSeen={saved.watched ? details.airedSeasons : saved.seasonsSeen}
-				/>
-			{/if}
-
-			<!-- The season picker says which season; this says where inside it. -->
-			{#if saved && position?.trackable && details.season}
-				<EpisodePicker
-					itemId={saved.id}
-					title={details.title}
-					season={details.season}
-					episodesWatched={position.episodesWatched}
-				/>
-			{/if}
-
-			{#if details.watch}
-				<WatchProviders watch={details.watch} title={details.title} />
-			{/if}
-
-			{#if details.genres.length}
-				<div class="mt-5 flex flex-wrap gap-2">
-					{#each details.genres as genre (genre)}
-						<span
-							class="rounded-full bg-surface-hi px-3 py-1 text-xs font-medium text-ink-muted ring-1 ring-line"
-						>
-							{genre}
-						</span>
-					{/each}
-				</div>
-			{/if}
-
-			{#if details.tagline}
-				<p class="mt-4 text-sm text-ink-muted italic">“{details.tagline}”</p>
-			{/if}
-
-			{#if details.overview}
-				<p class="mt-3 text-sm leading-relaxed text-ink-muted">{details.overview}</p>
-			{/if}
-
-			<SaveControl {details} {saved} {signedIn} />
-			<CastRow cast={details.cast} title={details} {onSelectTitle} />
-		</div>
+			{#snippet actions()}
+				<SaveControl {details} {saved} {signedIn} />
+				{#if shareUrl}
+					<ShareButton url={shareUrl} title={details.title} />
+				{/if}
+			{/snippet}
+		</TitleDetail>
 	{/if}
 </ModalSheet>

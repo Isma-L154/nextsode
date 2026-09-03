@@ -175,6 +175,14 @@ export interface MediaDetails {
 	 */
 	productionStatus: string | null;
 	voteAverage: number | null;
+	/**
+	 * How many TMDB users the average is drawn from.
+	 *
+	 * Carried purely so the public page's structured data can state it. A rating
+	 * with no count behind it is the one shape search engines reject, and making
+	 * one up would be worse than omitting the rating altogether.
+	 */
+	voteCount: number;
 	backdropPath: string | null;
 	posterPath: string | null;
 	cast: CastMember[];
