@@ -9,6 +9,7 @@ import {
 	type WatchlistRow
 } from '$lib/server/watchlist';
 import { normalizeDeletionWindow } from '$lib/domain/deletion';
+import { DEFAULT_SHARE_SCOPE, normalizeShareScope } from '$lib/domain/share';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -21,11 +22,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Typed rather than a bare `[]`: an untyped empty array widens the union the
 	// page sees to `never[]`, which breaks inference on every helper downstream.
 	if (!locals.user) {
-		return { items: [] as WatchlistRow[], autoDeleteDays: null, calendarToken: null };
+		return {
+			items: [] as WatchlistRow[],
+			autoDeleteDays: null,
+			calendarToken: null,
+			shareToken: null,
+			shareScope: DEFAULT_SHARE_SCOPE
+		};
 	}
 
 	const [row] = await getDb()
-		.select({ autoDeleteDays: user.autoDeleteDays, calendarToken: user.calendarToken })
+		.select({
+			autoDeleteDays: user.autoDeleteDays,
+			calendarToken: user.calendarToken,
+			shareToken: user.shareToken,
+			shareScope: user.shareScope
+		})
 		.from(user)
 		.where(eq(user.id, locals.user.id))
 		.limit(1);
@@ -45,12 +57,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	);
 
 	/**
-	 * The feed token reaches the browser deliberately: it is what the URL on
-	 * screen is made of, and that URL has to be copyable onto a second device.
-	 * It is only ever sent to its own owner — this loader returns nothing at all
-	 * without a session.
+	 * Both tokens reach the browser deliberately: they are what the URLs on
+	 * screen are made of, and those URLs have to be copyable onto a second
+	 * device. They are only ever sent to their own owner — this loader returns
+	 * nothing at all without a session.
 	 */
-	return { items, autoDeleteDays, calendarToken: row?.calendarToken ?? null };
+	return {
+		items,
+		autoDeleteDays,
+		calendarToken: row?.calendarToken ?? null,
+		shareToken: row?.shareToken ?? null,
+		shareScope: normalizeShareScope(row?.shareScope)
+	};
 };
 
 export const actions: Actions = watchlistActions;

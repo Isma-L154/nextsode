@@ -35,11 +35,19 @@ describe('robots.txt', () => {
 		const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
 
 		// Each of these is a decision with a reason, not a default: a metered TMDB
-		// proxy, a route that only redirects, a private list, and one person's
-		// calendar feed.
-		for (const path of ['/api/', '/auth/', '/watchlist', '/calendar/']) {
+		// proxy, a route that only redirects, a private list, one person's calendar
+		// feed, and a list shared with particular people rather than with everyone.
+		for (const path of ['/api/', '/auth/', '/watchlist', '/calendar/', '/share/']) {
 			expect(body).toContain(`Disallow: ${path}`);
 		}
+	});
+
+	// Titles are the one thing here that *should* rank. They hold no private
+	// data, and they are the only public surface the app has beyond its homepage.
+	it('leaves title pages open to crawlers', async () => {
+		const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
+
+		expect(body).not.toContain('Disallow: /title');
 	});
 
 	it('lets everything else be crawled', async () => {

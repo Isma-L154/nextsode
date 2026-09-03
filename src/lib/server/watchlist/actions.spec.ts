@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { createTestDatabase, seedUser, type TestDatabase } from '../test-db';
-import { watchlistItem } from '../db/schema';
+import { user, watchlistItem } from '../db/schema';
 import type { MediaDetails } from '$lib/types';
 
 /**
@@ -348,5 +348,79 @@ describe('add', () => {
 		});
 		const [row] = await harness.db.select().from(watchlistItem);
 		expect(row.airedSeasons).toBeNull();
+	});
+});
+
+describe('share link', () => {
+	/** The stored token and scope, which is what these actions exist to write. */
+	const settings = async (userId = 'user-1') =>
+		(
+			await harness.db
+				.select({ token: user.shareToken, scope: user.shareScope })
+				.from(user)
+				.where(eq(user.id, userId))
+		)[0];
+
+	// An unchecked box is absent from a form body rather than false, so presence
+	// is the whole test.
+	it('reads the scope from whichever boxes were ticked', async () => {
+		await call('issueShareLink', { toWatch: 'on' });
+		expect((await settings())?.scope).toBe('toWatch');
+
+		await call('updateShareScope', { watched: 'on' });
+		expect((await settings())?.scope).toBe('watched');
+
+		await call('updateShareScope', { toWatch: 'on', watched: 'on' });
+		expect((await settings())?.scope).toBe('both');
+	});
+
+	/**
+	 * There is no way to spell "share my list, showing nothing", and quietly
+	 * picking a default here would publish something nobody ticked.
+	 */
+	it('refuses to publish anything when no box is ticked', async () => {
+		expect(await call('issueShareLink', {})).toMatchObject({ status: 400 });
+		expect((await settings())?.token).toBeNull();
+	});
+
+	it('refuses to widen an existing link to nothing', async () => {
+		await call('issueShareLink', { watched: 'on' });
+		expect(await call('updateShareScope', {})).toMatchObject({ status: 400 });
+		expect((await settings())?.scope).toBe('watched');
+	});
+
+	// Re-scoping must not break the URL already sent; rolling over must.
+	it('keeps the link when re-scoping and replaces it when rolling over', async () => {
+		await call('issueShareLink', { toWatch: 'on' });
+		const first = (await settings())?.token;
+
+		await call('updateShareScope', { watched: 'on' });
+		expect((await settings())?.token).toBe(first);
+
+		await call('issueShareLink', { watched: 'on' });
+		expect((await settings())?.token).not.toBe(first);
+	});
+
+	it('turns the link off entirely', async () => {
+		await call('issueShareLink', { toWatch: 'on' });
+		await call('revokeShareLink', {});
+
+		expect(await settings()).toEqual({ token: null, scope: null });
+	});
+
+	it('turns every share action away without a session', async () => {
+		for (const action of ['issueShareLink', 'updateShareScope', 'revokeShareLink'] as const) {
+			expect(await call(action, { toWatch: 'on' }, null)).toMatchObject({ status: 401 });
+		}
+		expect((await settings())?.token).toBeNull();
+	});
+
+	it('publishes only the caller s own list', async () => {
+		await seedUser(harness.db, { id: 'user-2', googleId: 'google-2', email: 'b@e.com' });
+
+		await call('issueShareLink', { toWatch: 'on' }, 'user-2');
+
+		expect((await settings('user-1'))?.token).toBeNull();
+		expect((await settings('user-2'))?.token).toMatch(/^[0-9a-f]{64}$/);
 	});
 });

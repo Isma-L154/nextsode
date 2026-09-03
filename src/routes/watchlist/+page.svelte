@@ -14,6 +14,7 @@
 	import ComingSoon from '$lib/components/media/ComingSoon.svelte';
 	import AutoDeleteControl from '$lib/components/media/AutoDeleteControl.svelte';
 	import CalendarFeed from '$lib/components/media/CalendarFeed.svelte';
+	import ShareList from '$lib/components/media/ShareList.svelte';
 	import MediaDetailModal from '$lib/components/media/MediaDetailModal.svelte';
 	import Seo from '$lib/components/Seo.svelte';
 	import { toasts } from '$lib/stores/toasts.svelte';
@@ -234,6 +235,16 @@
 		<!-- Shown where it applies: the tab full of the titles it governs. -->
 		{#if statusTab === 'watched'}
 			<AutoDeleteControl current={data.autoDeleteDays} />
+		{/if}
+
+		<!--
+			On the two tabs whose titles a link can actually contain. Not on
+			Upcoming, which is a view over "to watch" rather than a third thing to
+			share, and which already carries the calendar feed — two panels about
+			two different links, stacked, would be a choice nobody asked to make.
+		-->
+		{#if statusTab === 'toWatch' || statusTab === 'watched'}
+			<ShareList token={data.shareToken} scope={data.shareScope} origin={page.data.origin} />
 		{/if}
 
 		{#if visibleItems.length === 0}

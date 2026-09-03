@@ -48,6 +48,31 @@ export const user = sqliteTable('user', {
 	 */
 	calendarToken: text('calendar_token').unique(),
 
+	/**
+	 * Secret that makes this list readable as a web page, or null when there is
+	 * none.
+	 *
+	 * Same shape and same trade-offs as `calendarToken`, and deliberately not the
+	 * same value: the two are handed to different audiences and have to be
+	 * revocable apart. Turning off a link sent to one friend must not
+	 * unsubscribe a calendar, and rolling the calendar over must not break a page
+	 * somebody bookmarked.
+	 *
+	 * Stored as-is rather than hashed, for the reason spelled out above: a URL
+	 * that has to be shown again cannot be a hash.
+	 */
+	shareToken: text('share_token').unique(),
+
+	/**
+	 * Which part of the list that token shows: `toWatch`, `watched` or `both`.
+	 *
+	 * Kept beside the token rather than encoded into it, so changing what is
+	 * shared does not invalidate a link that has already been sent. Null means
+	 * the same as no token — nothing is shared — and the column is only read
+	 * once a token exists; see `domain/share` for the values and the default.
+	 */
+	shareScope: text('share_scope'),
+
 	createdAt: integer('created_at', { mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date())
