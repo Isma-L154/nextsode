@@ -6,7 +6,7 @@
 	import SeasonTracker from './SeasonTracker.svelte';
 	import { getSeasonProgress } from '$lib/domain/progress';
 	import { progressNote } from '$lib/domain/episodes';
-	import { getReleaseInfo } from '$lib/domain/release';
+	import { canMarkWatched, getReleaseInfo, pendingReleaseLabel } from '$lib/domain/release';
 	import {
 		daysUntilDeletion,
 		shouldWarnAboutDeletion,
@@ -58,8 +58,27 @@
 
 	const progress = $derived(getSeasonProgress(item));
 
-	// "Mark as watched" still works on an unreleased title (premieres exist), but
-	// it shouldn't be the loudest thing on a card for something that isn't out.
+	/**
+	 * What replaces the "Watched" button on a title that is not out yet, or null
+	 * when there is nothing to wait for.
+	 *
+	 * The button used to sit here, quieter but still pressable, which meant a film
+	 * opening next spring could be filed as seen. Naming the date instead is not
+	 * only a refusal — it is the answer to the question the button was standing in
+	 * front of. `canMarkWatched` holds the rule and the reason it stops at
+	 * confirmed dates.
+	 *
+	 * Only ever shown for a title that is *not* already marked watched. A row that
+	 * predates this rule keeps its way back out; the rule governs the way in.
+	 */
+	const pendingRelease = $derived(
+		!item.watched && !canMarkWatched(item.releaseDate)
+			? pendingReleaseLabel(item.mediaType, item.releaseDate)
+			: null
+	);
+
+	// A title with no date at all is still tickable — see `canMarkWatched` — but
+	// it should not wear the loudest button on the card either.
 	const unreleased = $derived(getReleaseInfo(item.releaseDate).state !== 'released');
 
 	/**
@@ -120,21 +139,51 @@
 			</div>
 		{:else}
 			<div class="flex items-stretch gap-1.5">
-				<form method="POST" action="?/toggleWatched" use:enhance={onToggle} class="min-w-0 flex-1">
-					<input type="hidden" name="id" value={item.id} />
-					<button
-						type="submit"
-						class="flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold transition-colors duration-200 active:scale-[0.98]
-							{item.watched
-							? 'bg-surface-hi text-ink-muted ring-1 ring-line ring-inset hover:bg-line hover:text-ink'
-							: unreleased
-								? 'bg-surface-hi text-ink-muted ring-1 ring-line ring-inset hover:bg-line hover:text-ink'
-								: 'bg-mint/15 text-mint hover:bg-mint/25'}"
+				{#if pendingRelease}
+					<!--
+						Not a disabled button. A greyed control still reads as an action the
+						viewer is failing to perform, and invites the tap that does nothing;
+						this reads as what it is — a fact about the title, in the same amber
+						the poster badge already uses for "not out yet". The remove button
+						beside it stays, because changing your mind about waiting for
+						something is not the same as claiming to have seen it.
+					-->
+					<p
+						class="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber/10 px-1.5 py-1 text-center text-[11px] leading-tight font-semibold text-amber"
 					>
-						<Icon name={item.watched ? 'rotate' : 'check'} size={14} stroke={2.5} />
-						<span class="truncate">{item.watched ? 'Unwatch' : 'Watched'}</span>
-					</button>
-				</form>
+						<Icon name="clock" size={14} class="shrink-0" />
+						<!--
+							Wraps rather than truncates. A far-off date carries its year —
+							"Premieres Sep 30, 2028" — and that does not fit a poster tile on
+							a five-column grid on one line; truncating it would cut the year,
+							which is the part that made the date worth printing. The slot is
+							already 44px tall for the button it replaced, so a second line
+							costs nothing and the row of cards stays level.
+						-->
+						<span>{pendingRelease}</span>
+					</p>
+				{:else}
+					<form
+						method="POST"
+						action="?/toggleWatched"
+						use:enhance={onToggle}
+						class="min-w-0 flex-1"
+					>
+						<input type="hidden" name="id" value={item.id} />
+						<button
+							type="submit"
+							class="flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold transition-colors duration-200 active:scale-[0.98]
+								{item.watched
+								? 'bg-surface-hi text-ink-muted ring-1 ring-line ring-inset hover:bg-line hover:text-ink'
+								: unreleased
+									? 'bg-surface-hi text-ink-muted ring-1 ring-line ring-inset hover:bg-line hover:text-ink'
+									: 'bg-mint/15 text-mint hover:bg-mint/25'}"
+						>
+							<Icon name={item.watched ? 'rotate' : 'check'} size={14} stroke={2.5} />
+							<span class="truncate">{item.watched ? 'Unwatch' : 'Watched'}</span>
+						</button>
+					</form>
+				{/if}
 
 				<form method="POST" action="?/remove" use:enhance={onRemove}>
 					<input type="hidden" name="id" value={item.id} />

@@ -19,9 +19,12 @@ import type { WatchlistRow } from './queries';
 
 let harness: TestDatabase;
 vi.mock('../db', () => ({ getDb: () => harness.db }));
-vi.mock('../tmdb', () => ({ getDetails: vi.fn() }));
 
-const { deleteExpired } = await import('./upkeep');
+/** TMDB's answer, stubbed. The network is not what is under test here. */
+const details = vi.hoisted(() => vi.fn());
+vi.mock('../tmdb', () => ({ getDetails: details }));
+
+const { deleteExpired, refreshReleaseDates } = await import('./upkeep');
 
 const DAY = 86_400_000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
@@ -53,10 +56,16 @@ async function survivors(): Promise<string[]> {
 	return rows.map((row) => row.title).sort();
 }
 
+/** A date `days` from today, as TMDB writes them. */
+function isoIn(days: number): string {
+	return new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+}
+
 beforeEach(async () => {
 	harness = await createTestDatabase();
 	await seedUser(harness.db, { id: 'alice', googleId: 'g-alice', email: 'alice@example.test' });
 	await seedUser(harness.db, { id: 'bob', googleId: 'g-bob', email: 'bob@example.test' });
+	details.mockReset();
 });
 
 describe('deleteExpired', () => {
@@ -131,5 +140,88 @@ describe('deleteExpired', () => {
 			.from(watchlistItem)
 			.where(eq(watchlistItem.id, theirs.id));
 		expect(row.userId).toBe('bob');
+	});
+});
+
+describe('refreshReleaseDates', () => {
+	/** What the row holds now. */
+	const storedDate = async (id: string) =>
+		(await harness.db.select().from(watchlistItem).where(eq(watchlistItem.id, id)))[0].releaseDate;
+
+	it('asks about nothing when every title is already out', async () => {
+		const out = await saveTitle('alice', { releaseDate: '2016-11-11' });
+
+		expect(await refreshReleaseDates([out])).toEqual([out]);
+		expect(details).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The case the whole function exists for: a film pulled forward. Without this
+	 * the card keeps refusing "Watched" against a date that is no longer true,
+	 * and the only way out is removing the title and saving it again.
+	 */
+	it('brings a title forward once TMDB moves it', async () => {
+		const waiting = await saveTitle('alice', { releaseDate: isoIn(400), watched: false });
+		details.mockResolvedValue({ releaseDate: '2020-01-01' });
+
+		const [patched] = await refreshReleaseDates([waiting]);
+
+		expect(patched.releaseDate).toBe('2020-01-01');
+		expect(await storedDate(waiting.id)).toBe('2020-01-01');
+	});
+
+	it('records a date that slipped further out', async () => {
+		const waiting = await saveTitle('alice', { releaseDate: isoIn(10), watched: false });
+		details.mockResolvedValue({ releaseDate: isoIn(900) });
+
+		const [patched] = await refreshReleaseDates([waiting]);
+
+		expect(patched.releaseDate).toBe(isoIn(900));
+	});
+
+	// A date that was withdrawn is news; the row should stop claiming a day.
+	it('records a date being withdrawn', async () => {
+		const waiting = await saveTitle('alice', { releaseDate: isoIn(30), watched: false });
+		details.mockResolvedValue({ releaseDate: null });
+
+		const [patched] = await refreshReleaseDates([waiting]);
+
+		expect(patched.releaseDate).toBeNull();
+		expect(await storedDate(waiting.id)).toBeNull();
+	});
+
+	/**
+	 * Null from TMDB means "no answer", not "no date". Writing an absence over a
+	 * date we already had would turn one failed request into a lost release.
+	 */
+	it('leaves the row alone when TMDB cannot be reached', async () => {
+		const waiting = await saveTitle('alice', { releaseDate: isoIn(30), watched: false });
+		details.mockRejectedValue(new Error('network'));
+
+		const [patched] = await refreshReleaseDates([waiting]);
+
+		expect(patched.releaseDate).toBe(isoIn(30));
+		expect(await storedDate(waiting.id)).toBe(isoIn(30));
+	});
+
+	// What keeps a list of patient titles from issuing a write per row on every
+	// single page load.
+	it('writes nothing when the date has not changed', async () => {
+		const waiting = await saveTitle('alice', { releaseDate: isoIn(30), watched: false });
+		details.mockResolvedValue({ releaseDate: isoIn(30) });
+
+		expect(await refreshReleaseDates([waiting])).toEqual([waiting]);
+	});
+
+	it('caps how many titles one page load re-asks about', async () => {
+		const waiting = [];
+		for (let i = 0; i < 12; i++) {
+			waiting.push(await saveTitle('alice', { releaseDate: isoIn(50 + i), watched: false }));
+		}
+		details.mockResolvedValue({ releaseDate: '2020-01-01' });
+
+		await refreshReleaseDates(waiting);
+
+		expect(details.mock.calls.length).toBeLessThanOrEqual(8);
 	});
 });

@@ -4,7 +4,9 @@ import { watchlistItem } from '../db/schema';
 import { clampSeasons, deriveWatched } from '$lib/domain/progress';
 import { carryBookmark } from '$lib/domain/episodes';
 import { isDueForDeletion, type DeletionWindow } from '$lib/domain/deletion';
+import { isUpcoming } from '$lib/domain/release';
 import { resolveSeasonInfo } from './seasons';
+import { resolveReleaseDate } from './releases';
 import { watchedStamp } from './stamp';
 import type { WatchlistRow } from './queries';
 
@@ -107,6 +109,67 @@ export async function refreshSeasonData(items: WatchlistRow[]): Promise<Watchlis
 	// Patch the in-memory copy too, so the change shows up on this render rather
 	// than only after the visitor happens to reload.
 	return items.map((item) => (patches.has(item.id) ? { ...item, ...patches.get(item.id) } : item));
+}
+
+/**
+ * Re-ask TMDB about titles that have not come out yet, and return the list with
+ * those rows patched.
+ *
+ * Only rows still waiting are re-read, which is what bounds the work: once a
+ * title is out its date stops being asked about forever, so this converges to
+ * nothing for the great majority of a list. What it costs is one request per
+ * title somebody is waiting on, and what it buys is that a date is never more
+ * than one page load stale.
+ *
+ * That matters in three places, and it mattered in two of them before this rule
+ * existed. "Watched" is withheld on this date, so a film pulled forward would
+ * otherwise be untickable until it was removed and saved again. The Upcoming tab
+ * groups by it. And the calendar feed publishes it into people's calendars,
+ * where a slipped premiere becomes an appointment for a night with nothing on.
+ *
+ * Failures are non-fatal by construction: `resolveReleaseDate` answers null and
+ * the row keeps the date it had.
+ */
+export async function refreshReleaseDates(items: WatchlistRow[]): Promise<WatchlistRow[]> {
+	const now = new Date();
+	const pending = items
+		.filter((item) => isUpcoming(item.releaseDate, now))
+		.slice(0, BACKFILL_BATCH_SIZE);
+	if (pending.length === 0) return items;
+
+	const resolved = await Promise.all(
+		pending.map(async (item) => ({
+			id: item.id,
+			current: item.releaseDate,
+			answer: await resolveReleaseDate(item.mediaType, item.tmdbId)
+		}))
+	);
+
+	const db = getDb();
+	const patches = new Map<string, string | null>();
+
+	await Promise.all(
+		resolved.map(async ({ id, current, answer }) => {
+			// No answer, or the same answer: nothing to write. Skipping the unchanged
+			// case is what keeps a list of patient titles from issuing a write per
+			// row on every single page load.
+			if (!answer || answer.releaseDate === current) return;
+
+			patches.set(id, answer.releaseDate);
+			await db
+				.update(watchlistItem)
+				.set({ releaseDate: answer.releaseDate })
+				.where(eq(watchlistItem.id, id));
+		})
+	);
+
+	if (patches.size === 0) return items;
+
+	// Patch the in-memory copy too, so a title that came out early is tickable on
+	// this render rather than only after the visitor happens to reload.
+	return items.map((item) =>
+		patches.has(item.id) ? { ...item, releaseDate: patches.get(item.id) ?? null } : item
+	);
 }
 
 /**

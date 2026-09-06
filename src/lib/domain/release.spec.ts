@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getReleaseInfo, isUpcoming, releaseVerb } from './release';
+import {
+	canMarkWatched,
+	getReleaseInfo,
+	isUpcoming,
+	pendingReleaseLabel,
+	releaseVerb
+} from './release';
 
 // Fixed "today" so every assertion is deterministic regardless of when CI runs.
 const now = new Date('2026-07-29T12:00:00Z');
@@ -100,5 +106,72 @@ describe('releaseVerb', () => {
 	it('uses medium-appropriate wording', () => {
 		expect(releaseVerb('movie')).toBe('In theaters');
 		expect(releaseVerb('tv')).toBe('Premieres');
+	});
+});
+
+describe('canMarkWatched', () => {
+	it('allows anything already out', () => {
+		expect(canMarkWatched('1999-03-31', now)).toBe(true);
+		// Released today counts as released; see `getReleaseInfo`.
+		expect(canMarkWatched('2026-07-29', now)).toBe(true);
+	});
+
+	it('refuses a confirmed future date', () => {
+		expect(canMarkWatched('2026-07-30', now)).toBe(false);
+		expect(canMarkWatched('2029-12-19', now)).toBe(false);
+	});
+
+	it('refuses a future date given only as a month or a year', () => {
+		expect(canMarkWatched('2027-03', now)).toBe(false);
+		expect(canMarkWatched('2028', now)).toBe(false);
+	});
+
+	/**
+	 * The decision this rule turns on. "No date" means two opposite things — a
+	 * production announced years out, and an obscure catalogue title nobody has
+	 * dated — so refusing on it would lock a film somebody watched decades ago on
+	 * the strength of a missing field.
+	 */
+	it('allows a title TMDB has no date for at all', () => {
+		expect(canMarkWatched(null, now)).toBe(true);
+		expect(canMarkWatched('', now)).toBe(true);
+		expect(canMarkWatched('not-a-date', now)).toBe(true);
+	});
+
+	it('agrees with the badge the card already shows', () => {
+		for (const date of ['1999-03-31', '2026-07-29', '2026-07-30', '2029-12-19', null]) {
+			expect(canMarkWatched(date, now)).toBe(!isUpcoming(date, now));
+		}
+	});
+});
+
+describe('pendingReleaseLabel', () => {
+	// "Aug 14" alone does not say whether a film opens or a series premieres.
+	it('names the event as well as the date', () => {
+		expect(pendingReleaseLabel('movie', '2026-08-14', now)).toBe('Out Aug 14');
+		expect(pendingReleaseLabel('tv', '2026-08-14', now)).toBe('Premieres Aug 14');
+	});
+
+	/**
+	 * The date, never the countdown. `shortLabel` becomes "In 3 days" inside the
+	 * last week, and "In theaters In 3 days" reads like a typo — the countdown is
+	 * on the poster badge directly above instead.
+	 */
+	it('gives the date even when the badge above is counting down', () => {
+		expect(pendingReleaseLabel('movie', '2026-07-30', now)).toBe('Out Jul 30');
+		expect(pendingReleaseLabel('tv', '2026-08-02', now)).toBe('Premieres Aug 2');
+	});
+
+	// The longest thing this slot can be asked to hold; it has to fit a poster
+	// tile on a five-column grid without truncating.
+	it('says only as much as the date does', () => {
+		expect(pendingReleaseLabel('movie', '2027-03', now)).toBe('Out Mar 2027');
+		expect(pendingReleaseLabel('tv', '2028', now)).toBe('Premieres 2028');
+	});
+
+	// Nothing to say means nothing shown: the card falls back to its real control.
+	it('says nothing about a title that is out, or one with no date', () => {
+		expect(pendingReleaseLabel('movie', '1999-03-31', now)).toBeNull();
+		expect(pendingReleaseLabel('movie', null, now)).toBeNull();
 	});
 });

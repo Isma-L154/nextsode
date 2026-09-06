@@ -156,6 +156,39 @@ describe('toggleWatched', () => {
 		await call('toggleWatched', { id: 'item-1' });
 		expect((await read()).watchedAt).toBeNull();
 	});
+
+	/**
+	 * You cannot have watched what has not come out. The card renders the release
+	 * date instead of the button, so this is the guard for a form body that card
+	 * did not build.
+	 */
+	it('refuses to mark a title watched before it is released', async () => {
+		await saveShow({ releaseDate: '2999-01-01' });
+
+		expect(await call('toggleWatched', { id: 'item-1' })).toMatchObject({ status: 400 });
+		expect(await read()).toMatchObject({ watched: false });
+	});
+
+	// Not knowing when something came out is not knowing that it has not; see
+	// `canMarkWatched`.
+	it('still allows a title TMDB has no date for', async () => {
+		await saveShow({ releaseDate: null });
+
+		await call('toggleWatched', { id: 'item-1' });
+		expect(await read()).toMatchObject({ watched: true });
+	});
+
+	/**
+	 * Only the way in is guarded. A row saved before the rule, or one whose date
+	 * TMDB has since moved outwards, must never be stuck claiming something its
+	 * owner cannot take back.
+	 */
+	it('always allows un-watching, even once the date has moved into the future', async () => {
+		await saveShow({ releaseDate: '2999-01-01', watched: true, seasonsSeen: 3 });
+
+		await call('toggleWatched', { id: 'item-1' });
+		expect(await read()).toMatchObject({ watched: false });
+	});
 });
 
 describe('setEpisode', () => {
