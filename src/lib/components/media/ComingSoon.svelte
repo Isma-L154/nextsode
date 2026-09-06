@@ -4,6 +4,7 @@
 	import PosterGrid from './PosterGrid.svelte';
 	import WatchlistCard from './WatchlistCard.svelte';
 	import { groupByUpcomingWindow } from '$lib/domain/upcoming';
+	import { releaseVerb } from '$lib/domain/release';
 	import type { WatchlistItem } from '$lib/server/db/schema';
 
 	/**
@@ -80,7 +81,14 @@
 							{#if upcoming.kind === 'season'}
 								Season {upcoming.seasonNumber}
 							{:else}
-								Premieres
+								<!--
+									A film opens and a series premieres, and this line used to
+									call both of them a premiere. It matters more now that the
+									card directly above names the same event in its own words:
+									"Out Sep 9" over "Premieres · Wednesday, September 9" is the
+									card disagreeing with its own caption.
+								-->
+								{releaseVerb(item.mediaType)}
 							{/if}
 							· {upcoming.date ? upcoming.fullDate : 'date not announced'}
 						</p>

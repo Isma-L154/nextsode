@@ -11,6 +11,7 @@ import {
 } from '$lib/domain/progress';
 import { resolveEpisodeTarget, seasonBoundary } from '$lib/domain/episodes';
 import { normalizeDeletionWindow } from '$lib/domain/deletion';
+import { canMarkWatched } from '$lib/domain/release';
 import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from './seasons';
 import { watchedStamp } from './stamp';
 import { issueCalendarToken, revokeCalendarToken } from '../calendar';
@@ -213,6 +214,8 @@ export const watchlistActions = {
 		const db = getDb();
 		const [item] = await db
 			.select({
+				title: watchlistItem.title,
+				releaseDate: watchlistItem.releaseDate,
 				watched: watchlistItem.watched,
 				watchedAt: watchlistItem.watchedAt,
 				totalSeasons: watchlistItem.totalSeasons,
@@ -224,6 +227,20 @@ export const watchlistActions = {
 		if (!item) return fail(404, { message: 'Item not found.' });
 
 		const watched = !item.watched;
+
+		/**
+		 * A title that is not out yet cannot be marked watched — the same rule the
+		 * aired-seasons ceiling below already applies to shows, said once more for
+		 * films. The card renders the release date instead of the button, so
+		 * reaching here means a form body that was not built by that card.
+		 *
+		 * Only the way in is guarded. Un-watching stays open so a row saved before
+		 * this rule, or one whose date TMDB has since moved outwards, is never
+		 * stuck claiming something its owner cannot take back.
+		 */
+		if (watched && !canMarkWatched(item.releaseDate)) {
+			return fail(400, { message: `“${item.title}” isn't out yet.` });
+		}
 		// Only aired seasons can be ticked off, so "mark watched" lands on the last
 		// broadcast season rather than on an announced one.
 		const ceiling = item.airedSeasons ?? item.totalSeasons;

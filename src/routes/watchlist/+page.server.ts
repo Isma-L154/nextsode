@@ -4,6 +4,7 @@ import { user } from '$lib/server/db/schema';
 import {
 	deleteExpired,
 	loadWatchlist,
+	refreshReleaseDates,
 	refreshSeasonData,
 	watchlistActions,
 	type WatchlistRow
@@ -44,15 +45,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const autoDeleteDays = normalizeDeletionWindow(row?.autoDeleteDays);
 
 	/**
-	 * Two pieces of upkeep, both on the read path so there is no scheduled job to
-	 * own. Season data is resolved first because auto-deletion reads it: a show
-	 * that just gained a season must stop being eligible *before* the deletion
-	 * rule looks at it, or being caught up would destroy the very title whose next
+	 * Three pieces of upkeep, all on the read path so there is no scheduled job to
+	 * own, and the order between them is load-bearing.
+	 *
+	 * Season data is resolved first because auto-deletion reads it: a show that
+	 * just gained a season must stop being eligible *before* the deletion rule
+	 * looks at it, or being caught up would destroy the very title whose next
 	 * season is now airing.
+	 *
+	 * Release dates are re-asked next, and only for titles still waiting. That is
+	 * what keeps "Watched" from being withheld on a date that has quietly moved —
+	 * a film pulled forward would otherwise stay untickable until it was removed
+	 * and saved again.
 	 */
 	const items = await deleteExpired(
 		locals.user.id,
-		await refreshSeasonData(await loadWatchlist(locals.user.id)),
+		await refreshReleaseDates(await refreshSeasonData(await loadWatchlist(locals.user.id))),
 		autoDeleteDays
 	);
 

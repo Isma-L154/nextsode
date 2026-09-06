@@ -23,6 +23,15 @@ export interface ReleaseInfo {
 	daysUntil: number | null;
 	/** Compact badge text, e.g. "Tomorrow", "In 5 days", "Aug 14", "Mar 2027". */
 	shortLabel: string;
+	/**
+	 * The date itself, always, at the precision it was given: "Aug 14",
+	 * "Mar 2027", "2028".
+	 *
+	 * `shortLabel` turns into a countdown inside the last week, which is the
+	 * friendlier thing on a badge and the wrong thing to put after a verb —
+	 * "In theaters In 3 days" reads like a typo. Empty unless there is a date.
+	 */
+	shortDate: string;
 	/** Full sentence for detail views, e.g. "Friday, August 14, 2026". */
 	fullDate: string;
 }
@@ -39,22 +48,30 @@ const MS_PER_DAY = 86_400_000;
 export function getReleaseInfo(releaseDate: string | null, now: Date = new Date()): ReleaseInfo {
 	const parsed = parseReleaseDate(releaseDate);
 	if (parsed === null) {
-		return { state: 'unscheduled', daysUntil: null, shortLabel: 'TBA', fullDate: '' };
+		return {
+			state: 'unscheduled',
+			daysUntil: null,
+			shortLabel: 'TBA',
+			shortDate: '',
+			fullDate: ''
+		};
 	}
 
 	const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 	const daysUntil = Math.round((parsed.timestamp - todayUtc) / MS_PER_DAY);
 	const date = new Date(parsed.timestamp);
 	const fullDate = formatDate(date, parsed.precision, now.getFullYear(), true);
+	const shortDate = formatDate(date, parsed.precision, now.getFullYear(), false);
 
 	if (daysUntil <= 0) {
-		return { state: 'released', daysUntil: null, shortLabel: '', fullDate };
+		return { state: 'released', daysUntil: null, shortLabel: '', shortDate, fullDate };
 	}
 
 	return {
 		state: 'upcoming',
 		daysUntil,
 		shortLabel: formatShort(date, parsed.precision, daysUntil, now.getFullYear()),
+		shortDate,
 		fullDate
 	};
 }
@@ -146,4 +163,62 @@ function formatDate(
 
 function format(date: Date, options: Intl.DateTimeFormatOptions): string {
 	return new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(date);
+}
+
+/**
+ * Whether a title may be marked as watched yet.
+ *
+ * The app already refuses to let a show be ticked past its aired seasons — you
+ * cannot have watched what has not been broadcast — and this is the same rule
+ * for the other half of the library. Without it "Watched" sits on a film that
+ * opens next spring, which is either a mistake waiting to happen or a note the
+ * list has no way to interpret.
+ *
+ * Only a confirmed future date refuses. `unscheduled` — TMDB holding no date at
+ * all — deliberately does not, because that state means two opposite things: a
+ * production announced years out, and an obscure catalogue title nobody has
+ * dated. Refusing on it would lock a film somebody watched decades ago on the
+ * strength of a missing field. Not knowing when something came out is not the
+ * same as knowing it has not.
+ *
+ * Marking something *un*watched is never blocked; see `toggleWatched`. This
+ * governs the way in, not the way back out, so a row that predates the rule is
+ * never stranded.
+ */
+export function canMarkWatched(releaseDate: string | null, now: Date = new Date()): boolean {
+	return !isUpcoming(releaseDate, now);
+}
+
+/**
+ * The compact verb, for the one slot that has no room for `releaseVerb`.
+ *
+ * "In theaters Mar 2027" overflows a poster tile on a five-column grid and
+ * truncates to "In theaters Mar 20…", which loses the only part that was worth
+ * saying. "Out" costs eight characters and no meaning: the tile already wears a
+ * FILM or TV badge, so the verb is not what distinguishes them here — it is only
+ * there to stop a bare date reading as a year of production.
+ */
+function compactReleaseVerb(mediaType: MediaType): string {
+	return mediaType === 'tv' ? 'Premieres' : 'Out';
+}
+
+/**
+ * What the card says where the "Watched" button would have been.
+ *
+ * The verb matters as much as the date: "Aug 14" alone does not say whether a
+ * film opens or a series premieres, and the card has room for exactly one line.
+ *
+ * The date rather than `shortLabel`, which becomes a countdown inside the last
+ * week and would read "Out In 3 days". The countdown is not lost — it is on the
+ * poster badge directly above, which is the better place for it: one glance says
+ * how soon, the line underneath says what and when.
+ */
+export function pendingReleaseLabel(
+	mediaType: MediaType,
+	releaseDate: string | null,
+	now: Date = new Date()
+): string | null {
+	const release = getReleaseInfo(releaseDate, now);
+	if (release.state !== 'upcoming') return null;
+	return `${compactReleaseVerb(mediaType)} ${release.shortDate}`;
 }
