@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
+	countByUpcomingWindow,
 	getUpcomingInfo,
-	groupByUpcomingWindow,
 	hasUpcoming,
+	isInUpcomingWindow,
 	upcomingSortKey,
+	upcomingWindowFor,
 	type UpcomingEntry
 } from './upcoming';
 
 /** Fixed "today" so none of these drift with the calendar. */
 const now = new Date('2026-08-12T12:00:00Z');
+
+/** A date `days` from the fixed "today", as TMDB writes them. */
+const isoIn = (days: number) =>
+	new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10);
 
 const entry = (over: Partial<UpcomingEntry> = {}): UpcomingEntry => ({
 	mediaType: 'tv',
@@ -105,43 +111,84 @@ describe('upcomingSortKey', () => {
 	});
 });
 
-describe('groupByUpcomingWindow', () => {
-	const named = (title: string, over: Partial<UpcomingEntry>) => ({ title, ...entry(over) });
+describe('upcomingWindowFor', () => {
+	const inDays = (n: number) => ({ nextSeasonNumber: 2, nextSeasonAirDate: isoIn(n) });
 
-	it('buckets by how soon, and drops empty groups', () => {
-		const groups = groupByUpcomingWindow(
+	it('places a title in the window its date falls in', () => {
+		expect(upcomingWindowFor(entry(inDays(1)), now)).toBe('thisWeek');
+		expect(upcomingWindowFor(entry(inDays(7)), now)).toBe('thisWeek');
+		expect(upcomingWindowFor(entry(inDays(8)), now)).toBe('thisMonth');
+		expect(upcomingWindowFor(entry(inDays(31)), now)).toBe('thisMonth');
+		expect(upcomingWindowFor(entry(inDays(32)), now)).toBe('later');
+	});
+
+	it('gives an announced title with no date its own window', () => {
+		expect(upcomingWindowFor(entry({ nextSeasonNumber: 2, nextSeasonAirDate: null }), now)).toBe(
+			'undated'
+		);
+	});
+
+	// Nothing pending is not a window; it is an absence, and the caller filters
+	// on it before ever asking which bucket something is in.
+	it('answers null for a title with nothing pending', () => {
+		expect(upcomingWindowFor(entry(), now)).toBeNull();
+	});
+});
+
+describe('isInUpcomingWindow', () => {
+	const soon = entry({ nextSeasonNumber: 2, nextSeasonAirDate: isoIn(3) });
+
+	// 'all' is what the filter lands on, so it must not quietly drop anything.
+	it('lets everything pending through on "all"', () => {
+		expect(isInUpcomingWindow(soon, 'all', now)).toBe(true);
+		expect(
+			isInUpcomingWindow(entry({ nextSeasonNumber: 2, nextSeasonAirDate: null }), 'all', now)
+		).toBe(true);
+	});
+
+	it('matches only its own window otherwise', () => {
+		expect(isInUpcomingWindow(soon, 'thisWeek', now)).toBe(true);
+		expect(isInUpcomingWindow(soon, 'thisMonth', now)).toBe(false);
+		expect(isInUpcomingWindow(soon, 'later', now)).toBe(false);
+		expect(isInUpcomingWindow(soon, 'undated', now)).toBe(false);
+	});
+
+	it('excludes a title with nothing pending from every window', () => {
+		for (const window of ['all', 'thisWeek', 'thisMonth', 'later', 'undated'] as const) {
+			expect(isInUpcomingWindow(entry(), window, now)).toBe(false);
+		}
+	});
+});
+
+describe('countByUpcomingWindow', () => {
+	/**
+	 * The counts the filter chips wear. A chip that shows a number and then an
+	 * empty grid is worse than no chip, so these come from the same predicate the
+	 * filter itself uses.
+	 */
+	it('counts each window, and everything pending under "all"', () => {
+		const counts = countByUpcomingWindow(
 			[
-				named('next week', { nextSeasonNumber: 2, nextSeasonAirDate: '2026-08-16' }),
-				named('next month', { nextSeasonNumber: 2, nextSeasonAirDate: '2026-09-05' }),
-				named('far off', { nextSeasonNumber: 2, nextSeasonAirDate: '2027-06-01' }),
-				named('no date', { nextSeasonNumber: 2, nextSeasonAirDate: null }),
-				named('already out', {})
+				entry({ nextSeasonNumber: 2, nextSeasonAirDate: isoIn(2) }),
+				entry({ nextSeasonNumber: 2, nextSeasonAirDate: isoIn(5) }),
+				entry({ nextSeasonNumber: 2, nextSeasonAirDate: isoIn(20) }),
+				entry({ nextSeasonNumber: 2, nextSeasonAirDate: isoIn(300) }),
+				entry({ nextSeasonNumber: 2, nextSeasonAirDate: null }),
+				entry()
 			],
 			now
 		);
 
-		expect(groups.map((g) => g.window)).toEqual(['thisWeek', 'thisMonth', 'later', 'undated']);
-		expect(groups.flatMap((g) => g.items.map((i) => i.item.title))).toEqual([
-			'next week',
-			'next month',
-			'far off',
-			'no date'
-		]);
+		expect(counts).toEqual({ all: 5, thisWeek: 2, thisMonth: 1, later: 1, undated: 1 });
 	});
 
-	it('sorts within a bucket by how soon', () => {
-		const groups = groupByUpcomingWindow(
-			[
-				named('later that month', { nextSeasonNumber: 2, nextSeasonAirDate: '2026-09-05' }),
-				named('sooner', { nextSeasonNumber: 2, nextSeasonAirDate: '2026-08-25' })
-			],
-			now
-		);
-
-		expect(groups[0].items.map((i) => i.item.title)).toEqual(['sooner', 'later that month']);
-	});
-
-	it('returns nothing when there is nothing pending', () => {
-		expect(groupByUpcomingWindow([entry()], now)).toEqual([]);
+	it('counts nothing for a list with nothing pending', () => {
+		expect(countByUpcomingWindow([entry()], now)).toEqual({
+			all: 0,
+			thisWeek: 0,
+			thisMonth: 0,
+			later: 0,
+			undated: 0
+		});
 	});
 });

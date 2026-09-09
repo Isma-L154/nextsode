@@ -176,3 +176,72 @@ describe('countByStatus', () => {
 		});
 	});
 });
+
+describe('applyWatchlistView — the upcoming window filter', () => {
+	/** Titles landing in each window, measured from the fixed "today". */
+	const windowed: WatchlistEntry[] = [
+		...items,
+		entry({ title: 'Opens This Week', releaseDate: '2026-08-02' }),
+		entry({ title: 'Opens This Month', releaseDate: '2026-08-20' }),
+		entry({ title: 'Opens Much Later', releaseDate: '2027-06-01' }),
+		entry({ title: 'No Date Announced', releaseDate: null })
+	];
+
+	const upcoming = (window: string) =>
+		applyWatchlistView(windowed, { ...baseView, status: 'upcoming', window }, now).map(
+			(item) => item.title
+		);
+
+	/**
+	 * The default, and the reason the windows became a filter: one grid holding
+	 * everything pending, rather than a grid per window.
+	 */
+	it('shows everything pending on "all"', () => {
+		expect(upcoming('all').sort()).toEqual([
+			'No Date Announced',
+			'Opens Much Later',
+			'Opens This Month',
+			'Opens This Week'
+		]);
+	});
+
+	it('narrows to one window on demand', () => {
+		expect(upcoming('thisWeek')).toEqual(['Opens This Week']);
+		expect(upcoming('thisMonth')).toEqual(['Opens This Month']);
+		expect(upcoming('later')).toEqual(['Opens Much Later']);
+		expect(upcoming('undated')).toEqual(['No Date Announced']);
+	});
+
+	/**
+	 * The window is a lens on the Upcoming tab and nothing else. Left applied
+	 * while the viewer moves to another tab, it would silently empty a list that
+	 * has nothing to do with release dates.
+	 */
+	it('is ignored on every other tab', () => {
+		const watched = applyWatchlistView(
+			windowed,
+			{ ...baseView, status: 'watched', window: 'thisWeek' },
+			now
+		);
+		expect(watched.map((item) => item.title).sort()).toEqual(['Arrival', 'Breaking Bad']);
+	});
+
+	it('composes with the other filters rather than replacing them', () => {
+		const withSeries = [
+			...windowed,
+			entry({ title: 'A Series This Week', mediaType: 'tv', releaseDate: '2026-08-03' })
+		];
+		const result = applyWatchlistView(
+			withSeries,
+			{ ...baseView, status: 'upcoming', window: 'thisWeek', type: 'tv' },
+			now
+		);
+		expect(result.map((item) => item.title)).toEqual(['A Series This Week']);
+	});
+
+	// An absent window must behave exactly as it did before the filter existed.
+	it('defaults to showing everything pending when unset', () => {
+		const result = applyWatchlistView(windowed, { ...baseView, status: 'upcoming' }, now);
+		expect(result).toHaveLength(4);
+	});
+});
