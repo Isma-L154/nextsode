@@ -2,6 +2,11 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import type { countByStatus } from '$lib/domain/watchlist';
+	import {
+		UPCOMING_FILTERS,
+		UPCOMING_FILTER_LABELS,
+		type countByUpcomingWindow
+	} from '$lib/domain/upcoming';
 
 	/**
 	 * Filters for the saved list.
@@ -17,6 +22,10 @@
 		type: string;
 		sort: string;
 		query: string;
+		/** Which release window the Upcoming tab is narrowed to. */
+		window: string;
+		/** How many pending titles sit in each window, for the chip numbers. */
+		windowCounts: ReturnType<typeof countByUpcomingWindow>;
 	}
 
 	let {
@@ -24,7 +33,9 @@
 		status = $bindable(),
 		type = $bindable(),
 		sort = $bindable(),
-		query = $bindable()
+		query = $bindable(),
+		window = $bindable(),
+		windowCounts
 	}: Props = $props();
 
 	/**
@@ -48,6 +59,30 @@
 			: []),
 		{ value: 'watched', label: 'Watched', count: counts.watched }
 	]);
+
+	/**
+	 * The release windows, offered as a filter rather than as headings.
+	 *
+	 * They used to split the view into a grid per window, which is what made a
+	 * handful of titles render as several rows holding one card each. As chips
+	 * they narrow a single grid, and an empty window is dropped for the same
+	 * reason an empty status tab is: a chip that leads to nothing is noise.
+	 */
+	const windowOptions = $derived(
+		UPCOMING_FILTERS.filter((value) => value === 'all' || windowCounts[value] > 0).map((value) => ({
+			value,
+			label: UPCOMING_FILTER_LABELS[value],
+			count: windowCounts[value]
+		}))
+	);
+
+	/**
+	 * The Upcoming tab takes the place of the sort control rather than sitting
+	 * beside it. That tab is about *when*, so it is always ordered soonest-first
+	 * — the grouped view it replaces offered no ordering choice either — and
+	 * "Recently added" over a list of release dates answers nobody's question.
+	 */
+	const showingWindows = $derived(status === 'upcoming');
 </script>
 
 <div class="space-y-2.5">
@@ -81,25 +116,33 @@
 			]}
 		/>
 
-		<label class="relative">
-			<span class="sr-only">Sort watchlist</span>
-			<select
-				bind:value={sort}
-				class="cursor-pointer appearance-none rounded-xl bg-surface py-2 pr-8 pl-3 text-xs font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 hover:text-ink sm:text-sm"
-			>
-				<option value="recent">Recently added</option>
-				<option value="rating">Top rated</option>
-				<option value="title">A–Z</option>
-				{#if counts.upcoming > 0}
-					<option value="soonest">Releasing soonest</option>
-				{/if}
-			</select>
-			<span
-				class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rotate-90 text-ink-faint"
-				aria-hidden="true"
-			>
-				<Icon name="chevronRight" size={13} />
-			</span>
-		</label>
+		{#if showingWindows}
+			<SegmentedControl
+				bind:value={window}
+				label="Filter by release window"
+				options={windowOptions}
+			/>
+		{:else}
+			<label class="relative">
+				<span class="sr-only">Sort watchlist</span>
+				<select
+					bind:value={sort}
+					class="cursor-pointer appearance-none rounded-xl bg-surface py-2 pr-8 pl-3 text-xs font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 hover:text-ink sm:text-sm"
+				>
+					<option value="recent">Recently added</option>
+					<option value="rating">Top rated</option>
+					<option value="title">A–Z</option>
+					{#if counts.upcoming > 0}
+						<option value="soonest">Releasing soonest</option>
+					{/if}
+				</select>
+				<span
+					class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rotate-90 text-ink-faint"
+					aria-hidden="true"
+				>
+					<Icon name="chevronRight" size={13} />
+				</span>
+			</label>
+		{/if}
 	</div>
 </div>

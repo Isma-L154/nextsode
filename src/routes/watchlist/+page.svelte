@@ -11,7 +11,6 @@
 	import WatchlistCard from '$lib/components/media/WatchlistCard.svelte';
 	import WatchlistToolbar from '$lib/components/media/WatchlistToolbar.svelte';
 	import ContinueWatching from '$lib/components/media/ContinueWatching.svelte';
-	import ComingSoon from '$lib/components/media/ComingSoon.svelte';
 	import AutoDeleteControl from '$lib/components/media/AutoDeleteControl.svelte';
 	import CalendarFeed from '$lib/components/media/CalendarFeed.svelte';
 	import ShareList from '$lib/components/media/ShareList.svelte';
@@ -21,6 +20,7 @@
 	import { absorb, withToast } from '$lib/forms/feedback';
 	import { pendingSaves } from '$lib/stores/pending-saves.svelte';
 	import { applyWatchlistView, countByStatus, isInProgress } from '$lib/domain/watchlist';
+	import { countByUpcomingWindow } from '$lib/domain/upcoming';
 	import { mediaKey } from '$lib/domain/media';
 	import type { WatchlistItem } from '$lib/server/db/schema';
 	import type { MediaType, SavedEntry } from '$lib/types';
@@ -51,6 +51,8 @@
 	let typeFilter = $state('all');
 	let sortBy = $state('recent');
 	let listQuery = $state('');
+	/** Which release window Upcoming is narrowed to; ignored on every other tab. */
+	let upcomingWindow = $state('all');
 
 	let selected = $state<{ tmdbId: number; mediaType: MediaType } | null>(null);
 
@@ -79,13 +81,39 @@
 			: []
 	);
 
+	/**
+	 * Upcoming is always soonest-first. It is the tab about *when*, and the
+	 * grouped view it replaces imposed that order too, so nothing is taken away.
+	 */
+	const effectiveSort = $derived(statusTab === 'upcoming' ? 'soonest' : sortBy);
+
 	const visibleItems = $derived(
 		applyWatchlistView(items, {
 			status: statusTab,
 			type: typeFilter,
-			sort: sortBy,
-			query: listQuery
+			sort: effectiveSort,
+			query: listQuery,
+			window: upcomingWindow
 		})
+	);
+
+	/**
+	 * The numbers on the window chips.
+	 *
+	 * Counted from the same set the grid draws from, minus the window itself —
+	 * so a chip reading "3" can never lead to an empty grid once the type or the
+	 * search box has already narrowed things.
+	 */
+	const upcomingWindowCounts = $derived(
+		countByUpcomingWindow(
+			applyWatchlistView(items, {
+				status: 'upcoming',
+				type: typeFilter,
+				sort: 'recent',
+				query: listQuery,
+				window: 'all'
+			})
+		)
 	);
 
 	// "<tmdbId>:<mediaType>" -> saved row, so the modal renders the same controls
@@ -122,6 +150,9 @@
 		statusTab = 'toWatch';
 		typeFilter = 'all';
 		listQuery = '';
+		// Cleared with the rest, or coming back to Upcoming would land on a
+		// narrowing the viewer had already asked to be rid of.
+		upcomingWindow = 'all';
 	}
 
 	/**
@@ -229,6 +260,8 @@
 				bind:type={typeFilter}
 				bind:sort={sortBy}
 				bind:query={listQuery}
+				bind:window={upcomingWindow}
+				windowCounts={upcomingWindowCounts}
 			/>
 		</div>
 
@@ -277,40 +310,39 @@
 				     about when things happen, which is the only place subscribing a
 				     calendar to the list means anything. -->
 				<CalendarFeed token={data.calendarToken} origin={page.data.origin} />
-
-				<!-- The one tab where the date *is* the content, so it groups by how
-				     soon rather than laying everything out in one undifferentiated grid. -->
-				<ComingSoon
-					items={visibleItems}
-					eagerPosters={EAGER_POSTERS}
-					onSelect={(item) => (selected = item)}
-					onToggle={(item) =>
-						withToast(item.watched ? 'Moved back to your list' : 'Marked as watched')}
-					onSetSeasons={seasonProgressToast}
-					onRemove={(item) => withToast(`Removed “${item.title}”`, 'info')}
-				/>
-			{:else}
-				<PosterGrid>
-					{#each visibleItems as item, index (item.id)}
-						<div
-							animate:flip={{ duration: 250 }}
-							in:fade={{ duration: 200 }}
-							out:fade={{ duration: 150 }}
-						>
-							<WatchlistCard
-								{item}
-								priority={index < EAGER_POSTERS}
-								deleteWindow={data.autoDeleteDays}
-								onSelect={() => (selected = item)}
-								onToggle={withToast(item.watched ? 'Moved back to your list' : 'Marked as watched')}
-								onSetSeasons={seasonProgressToast(item)}
-								onRemove={withToast(`Removed “${item.title}”`, 'info')}
-								onKeep={withToast(`Keeping “${item.title}” on your list`, 'info')}
-							/>
-						</div>
-					{/each}
-				</PosterGrid>
 			{/if}
+
+			<!--
+				One grid, on every tab.
+
+				Upcoming used to render its own bucketed layout, a separate grid per
+				time window. Two things came of that and both were bugs: a handful of
+				titles spread across four windows became four rows holding one card
+				each, and the caption under every card overflowed its cell — the card
+				fills the cell by design, so a sibling below it had nowhere to go and
+				landed on the next heading. The windows are a filter now, so this tab
+				draws from the same grid as the rest of the list.
+			-->
+			<PosterGrid>
+				{#each visibleItems as item, index (item.id)}
+					<div
+						animate:flip={{ duration: 250 }}
+						in:fade={{ duration: 200 }}
+						out:fade={{ duration: 150 }}
+					>
+						<WatchlistCard
+							{item}
+							priority={index < EAGER_POSTERS}
+							deleteWindow={data.autoDeleteDays}
+							onSelect={() => (selected = item)}
+							onToggle={withToast(item.watched ? 'Moved back to your list' : 'Marked as watched')}
+							onSetSeasons={seasonProgressToast(item)}
+							onRemove={withToast(`Removed “${item.title}”`, 'info')}
+							onKeep={withToast(`Keeping “${item.title}” on your list`, 'info')}
+						/>
+					</div>
+				{/each}
+			</PosterGrid>
 		{/if}
 	{/if}
 </div>

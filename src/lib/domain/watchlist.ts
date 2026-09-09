@@ -1,6 +1,6 @@
 import { isTrackable } from './progress';
 import { hasStarted } from './episodes';
-import { hasUpcoming, upcomingSortKey } from './upcoming';
+import { hasUpcoming, isInUpcomingWindow, upcomingSortKey, type UpcomingFilter } from './upcoming';
 import type { MediaType } from '../types';
 
 /**
@@ -31,6 +31,15 @@ export interface WatchlistView {
 	status: string;
 	/** 'all' | 'movie' | 'tv' */
 	type: string;
+	/**
+	 * Which release window the Upcoming tab is narrowed to, if any.
+	 *
+	 * Only read on that tab. These were headings that split the view into a grid
+	 * per window, which is what made a handful of titles render as several rows
+	 * of one card; as a filter they narrow one grid instead. Absent means the
+	 * whole of what is pending, which is the landing state.
+	 */
+	window?: UpcomingFilter | string;
 	/** 'recent' | 'rating' | 'title' | 'soonest' */
 	sort: string;
 	/** Free-text title filter. */
@@ -57,10 +66,23 @@ export function applyWatchlistView<T extends WatchlistEntry>(
 			view.status === 'all' ||
 			(view.status === 'toWatch' && !item.watched) ||
 			(view.status === 'watched' && item.watched) ||
-			(view.status === 'upcoming' && hasUpcoming(item, now)) ||
+			(view.status === 'upcoming' && matchesUpcomingWindow(item)) ||
 			(view.status === 'inProgress' && isInProgress(item));
 		return matchesStatus && matchesRest(item);
 	});
+
+	/**
+	 * Pending, and in the chosen window.
+	 *
+	 * The window narrows this tab and belongs to it alone — every other status
+	 * ignores it, so a window left applied cannot silently empty a list that has
+	 * nothing to do with release dates.
+	 */
+	function matchesUpcomingWindow(item: WatchlistEntry): boolean {
+		const window = view.window;
+		if (!window || window === 'all') return hasUpcoming(item, now);
+		return isInUpcomingWindow(item, window as UpcomingFilter, now);
+	}
 
 	function matchesRest(item: WatchlistEntry): boolean {
 		const matchesType = view.type === 'all' || item.mediaType === view.type;

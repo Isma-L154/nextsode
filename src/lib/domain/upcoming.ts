@@ -87,24 +87,44 @@ export function upcomingSortKey(entry: UpcomingEntry, now: Date = new Date()): n
 
 export type UpcomingWindow = 'thisWeek' | 'thisMonth' | 'later' | 'undated';
 
-export interface UpcomingGroup<T> {
-	window: UpcomingWindow;
-	label: string;
-	items: Array<{ item: T; upcoming: UpcomingInfo }>;
-}
+/** The windows plus the unfiltered view, in the order the filter offers them. */
+export type UpcomingFilter = 'all' | UpcomingWindow;
+
+export const UPCOMING_FILTERS: readonly UpcomingFilter[] = [
+	'all',
+	'thisWeek',
+	'thisMonth',
+	'later',
+	'undated'
+];
+
+export const UPCOMING_FILTER_LABELS: Record<UpcomingFilter, string> = {
+	all: 'All',
+	thisWeek: 'This week',
+	thisMonth: 'This month',
+	later: 'Later',
+	undated: 'No date'
+};
 
 /** Bucket boundaries in days. A "month" is 31 so a 30-day month never spills. */
 const THIS_WEEK_DAYS = 7;
 const THIS_MONTH_DAYS = 31;
 
-const WINDOW_LABELS: Record<UpcomingWindow, string> = {
-	thisWeek: 'This week',
-	thisMonth: 'This month',
-	later: 'Later',
-	undated: 'No date yet'
-};
-
-function windowFor(info: UpcomingInfo): UpcomingWindow {
+/**
+ * Which window a pending title falls in, or null when nothing is pending.
+ *
+ * These used to be headings that split the view into one grid per window, which
+ * is what broke it: a handful of titles spread across four windows rendered as
+ * four rows of one card. They are a *filter* now — one grid, narrowed on demand
+ * — so this answers a question about a single title rather than partitioning a
+ * list.
+ */
+export function upcomingWindowFor(
+	entry: UpcomingEntry,
+	now: Date = new Date()
+): UpcomingWindow | null {
+	const info = getUpcomingInfo(entry, now);
+	if (!info) return null;
 	if (info.daysUntil === null) return 'undated';
 	if (info.daysUntil <= THIS_WEEK_DAYS) return 'thisWeek';
 	if (info.daysUntil <= THIS_MONTH_DAYS) return 'thisMonth';
@@ -112,36 +132,40 @@ function windowFor(info: UpcomingInfo): UpcomingWindow {
 }
 
 /**
- * Group pending titles into time windows, soonest first, dropping empty groups.
+ * Whether a title belongs in the chosen filter.
  *
- * A flat grid sorted by date technically holds the same information, but reading
- * it means comparing every badge against today. Buckets answer the actual
- * question — "is there anything this week?" — without any arithmetic.
+ * `all` still excludes titles with nothing pending: the filter narrows the
+ * Upcoming view, it does not define it.
  */
-export function groupByUpcomingWindow<T extends UpcomingEntry>(
-	items: readonly T[],
+export function isInUpcomingWindow(
+	entry: UpcomingEntry,
+	filter: UpcomingFilter,
 	now: Date = new Date()
-): UpcomingGroup<T>[] {
-	const order: UpcomingWindow[] = ['thisWeek', 'thisMonth', 'later', 'undated'];
-	const buckets = new Map<UpcomingWindow, UpcomingGroup<T>['items']>(
-		order.map((window) => [window, []])
-	);
+): boolean {
+	const window = upcomingWindowFor(entry, now);
+	if (window === null) return false;
+	return filter === 'all' || window === filter;
+}
+
+/** How many pending titles sit in each window, for the numbers on the chips. */
+export function countByUpcomingWindow(
+	items: readonly UpcomingEntry[],
+	now: Date = new Date()
+): Record<UpcomingFilter, number> {
+	const counts: Record<UpcomingFilter, number> = {
+		all: 0,
+		thisWeek: 0,
+		thisMonth: 0,
+		later: 0,
+		undated: 0
+	};
 
 	for (const item of items) {
-		const upcoming = getUpcomingInfo(item, now);
-		if (!upcoming) continue;
-		buckets.get(windowFor(upcoming))!.push({ item, upcoming });
+		const window = upcomingWindowFor(item, now);
+		if (window === null) continue;
+		counts.all++;
+		counts[window]++;
 	}
 
-	return order
-		.map((window) => ({
-			window,
-			label: WINDOW_LABELS[window],
-			items: (buckets.get(window) ?? []).sort(
-				(a, b) =>
-					(a.upcoming.daysUntil ?? Number.POSITIVE_INFINITY) -
-					(b.upcoming.daysUntil ?? Number.POSITIVE_INFINITY)
-			)
-		}))
-		.filter((group) => group.items.length > 0);
+	return counts;
 }
