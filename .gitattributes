@@ -4,3 +4,7 @@
 * text=auto eol=lf
 *.png binary
 *.svg text eol=lf
+# Wrangler regenerates this in full; it is ~14,800 lines of pinned workerd
+# runtime typings around ~20 lines of this project's own bindings. Marking it
+# generated keeps it out of diffs and out of the language breakdown.
+worker-configuration.d.ts linguist-generated=true

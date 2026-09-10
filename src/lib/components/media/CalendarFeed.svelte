@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { toasts } from '$lib/stores/toasts.svelte';
-	import { absorb } from '$lib/forms/feedback';
+	import { absorb, copyToClipboard } from '$lib/forms/feedback';
 	import { subscribeLinks } from '$lib/domain/calendar';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
@@ -37,23 +37,10 @@
 			};
 	};
 
-	/**
-	 * Copy, or fall back to selecting the text.
-	 *
-	 * `navigator.clipboard` needs a secure context and a permission that can be
-	 * refused. When it is not there, leaving the URL selected turns the failure
-	 * into one keystroke rather than a dead button.
-	 */
-	async function copy() {
-		if (!url) return;
-		try {
-			await navigator.clipboard.writeText(url);
-			toasts.add('Calendar link copied');
-		} catch {
-			field?.select();
-			toasts.add('Press Ctrl/Cmd + C to copy the link', 'info');
-		}
-	}
+	/** The field is already on screen here, so refusal only has to select it. */
+	const copy = () =>
+		url &&
+		copyToClipboard(url, { success: 'Calendar link copied', onRefused: () => field?.select() });
 </script>
 
 <section

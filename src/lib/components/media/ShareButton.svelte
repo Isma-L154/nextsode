@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
-	import { toasts } from '$lib/stores/toasts.svelte';
+	import { copyToClipboard } from '$lib/forms/feedback';
 
 	/**
 	 * Hand this title's public link to somebody.
@@ -45,18 +45,17 @@
 			}
 		}
 
-		try {
-			await navigator.clipboard.writeText(url);
-			toasts.add('Link copied');
-			return;
-		} catch {
-			revealed = true;
-		}
-
-		// After the input has been rendered, so there is something to select.
-		await tick();
-		field?.select();
-		toasts.add('Press Ctrl/Cmd + C to copy the link', 'info');
+		// Unlike the panels, this button has no field on screen until the clipboard
+		// has actually refused — so revealing one is part of the fallback, and the
+		// tick is what gives it time to exist before it is selected.
+		await copyToClipboard(url, {
+			success: 'Link copied',
+			onRefused: async () => {
+				revealed = true;
+				await tick();
+				field?.select();
+			}
+		});
 	}
 </script>
 

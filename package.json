@@ -22,11 +22,15 @@
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright install && playwright test"
 	},
+	"dependencies": {
+		"@libsql/client": "^0.17.3",
+		"arctic": "^3.7.0",
+		"drizzle-orm": "^0.45.2"
+	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@fontsource-variable/outfit": "^5.3.0",
 		"@fontsource-variable/work-sans": "^5.3.0",
-		"@libsql/client": "^0.17.3",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-cloudflare": "^7.2.8",
 		"@sveltejs/kit": "^2.63.0",
@@ -34,9 +38,7 @@
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^24",
 		"@vitest/browser-playwright": "^4.1.8",
-		"arctic": "^3.7.0",
 		"drizzle-kit": "^0.31.10",
-		"drizzle-orm": "^0.45.2",
 		"eslint": "^10.4.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.19.0",

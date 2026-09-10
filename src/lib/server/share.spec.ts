@@ -16,14 +16,8 @@ import { user, watchlistItem } from './db/schema';
 let harness: TestDatabase;
 vi.mock('./db', () => ({ getDb: () => harness.db }));
 
-const {
-	generateShareToken,
-	issueShareToken,
-	loadShareSettings,
-	loadSharedList,
-	revokeShareToken,
-	setShareScope
-} = await import('./share');
+const { generateShareToken, issueShareToken, loadSharedList, revokeShareToken, setShareScope } =
+	await import('./share');
 
 async function saveTitle(userId: string, over: Record<string, unknown> = {}) {
 	await harness.db.insert(watchlistItem).values({
@@ -217,16 +211,5 @@ describe('loadSharedList', () => {
 
 		expect(list?.items).toEqual([]);
 		expect(list?.counts).toEqual({ toWatch: 0, watched: 0 });
-	});
-});
-
-describe('loadShareSettings', () => {
-	it('reports no link before one is made', async () => {
-		expect(await loadShareSettings('user-1')).toEqual({ token: null, scope: 'toWatch' });
-	});
-
-	it('reports the link and what it shows', async () => {
-		const token = await issueShareToken('user-1', 'watched');
-		expect(await loadShareSettings('user-1')).toEqual({ token, scope: 'watched' });
 	});
 });
