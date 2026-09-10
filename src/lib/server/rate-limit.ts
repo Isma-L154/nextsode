@@ -20,9 +20,6 @@ import { error, type RequestEvent } from '@sveltejs/kit';
  * against a distributed caller, and nothing here should be read as one.
  */
 
-/** Requests allowed per key per window; mirrors `wrangler.jsonc`. */
-export const RATE_LIMIT = 60;
-
 /**
  * Who is asking, as far as the edge can tell.
  *

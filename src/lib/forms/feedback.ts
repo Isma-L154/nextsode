@@ -53,3 +53,29 @@ export function withToast(message: string, type: 'success' | 'info' = 'success')
 			if (await absorb(result, update)) toasts.add(message, type);
 		};
 }
+
+/**
+ * Put text on the clipboard, or fall back to something the reader can act on.
+ *
+ * `navigator.clipboard` needs a secure context and a permission that can be
+ * refused, so the write genuinely fails on machines where everything else
+ * works. What every caller then does is the same — say so, in the same words —
+ * and what differs is how each one gets the text in front of the reader to be
+ * copied by hand, which is why that part is a callback rather than a field.
+ *
+ * Written once because it was written three times: the calendar feed, the share
+ * panel and the share button each had their own copy, and the wording had
+ * already started to drift between them.
+ */
+export async function copyToClipboard(
+	text: string,
+	{ success, onRefused }: { success: string; onRefused?: () => void | Promise<void> }
+): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(text);
+		toasts.add(success);
+	} catch {
+		await onRefused?.();
+		toasts.add('Press Ctrl/Cmd + C to copy the link', 'info');
+	}
+}

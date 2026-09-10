@@ -161,18 +161,3 @@ export async function loadSharedList(token: string): Promise<SharedList | null> 
 		items: rows.filter((row) => scopeIncludes(scope, row.watched))
 	};
 }
-
-/** The current share settings for one account, for their own My List page. */
-export async function loadShareSettings(userId: string) {
-	const [row] = await getDb()
-		.select({ token: user.shareToken, scope: user.shareScope })
-		.from(user)
-		.where(eq(user.id, userId))
-		.limit(1);
-
-	return {
-		token: row?.token ?? null,
-		// Only meaningful alongside a token; the panel reads it to tick the boxes.
-		scope: normalizeShareScope(row?.scope)
-	};
-}
