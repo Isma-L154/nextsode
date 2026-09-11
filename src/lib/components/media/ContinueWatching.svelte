@@ -6,7 +6,7 @@
 	import { getSeasonProgress } from '$lib/domain/progress';
 	import { progressNote } from '$lib/domain/episodes';
 	import { posterUrl } from '$lib/format/tmdb-image';
-	import type { WatchlistItem } from '$lib/server/db/schema';
+	import type { SavedTitle } from '$lib/domain/watchlist';
 
 	/**
 	 * "What was I in the middle of?" — the first question anyone opens a watchlist
@@ -19,9 +19,9 @@
 	 * row of vertical space.
 	 */
 	interface Props {
-		items: WatchlistItem[];
-		onSelect: (item: WatchlistItem) => void;
-		onSetSeasons: (item: WatchlistItem) => SubmitFunction;
+		items: SavedTitle[];
+		onSelect: (item: SavedTitle) => void;
+		onSetSeasons: (item: SavedTitle) => SubmitFunction;
 	}
 
 	let { items, onSelect, onSetSeasons }: Props = $props();

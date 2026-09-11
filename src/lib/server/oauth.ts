@@ -13,7 +13,7 @@ import { env } from '$env/dynamic/private';
 export const GOOGLE_SCOPES = ['openid', 'profile', 'email'];
 
 /** Path Google redirects back to. Must be registered in the Google Console. */
-export const CALLBACK_PATH = '/auth/google/callback';
+const CALLBACK_PATH = '/auth/google/callback';
 
 /**
  * Short-lived cookies that carry the handshake across the redirect to Google:

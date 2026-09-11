@@ -1,8 +1,8 @@
 import { fail, type Actions } from '@sveltejs/kit';
-import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
-import { getDb } from '../db';
-import { user, watchlistItem } from '../db/schema';
-import { clip, toPositiveInt, toRating } from '../form';
+import { eq, sql } from 'drizzle-orm';
+import { getDb } from '../../db';
+import { watchlistItem } from '../../db/schema';
+import { clip, toPositiveInt, toRating } from '../../form';
 import {
 	clampSeasons,
 	deriveWatched,
@@ -10,30 +10,18 @@ import {
 	normalizeTotalSeasons
 } from '$lib/domain/progress';
 import { resolveEpisodeTarget, seasonBoundary } from '$lib/domain/episodes';
-import { normalizeDeletionWindow } from '$lib/domain/deletion';
 import { canMarkWatched } from '$lib/domain/release';
-import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from './seasons';
-import { watchedStamp } from './stamp';
-import { issueCalendarToken, revokeCalendarToken } from '../calendar';
-import { issueShareToken, revokeShareToken, setShareScope } from '../share';
-import { scopeFromChoices } from '$lib/domain/share';
+import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from '../seasons';
+import { watchedStamp } from '../stamp';
+import { UNAUTHENTICATED, ownedRow } from './shared';
 import type { MediaType } from '$lib/types';
 
 /**
- * Every write a visitor can make to their own list.
+ * The titles themselves: saving one, dropping one, and moving through it.
  *
- * Both routes need these: Discover saves titles and My List edits them, and a
- * SvelteKit form action only exists on the route it is declared in. Rather than
- * two drifting copies, each `+page.server.ts` re-exports this one set.
- *
- * Two rules hold across all of them. Nothing is trusted from the browser except
- * intent — every bound is resolved here — and every statement is scoped by the
- * session's user id, because item ids travel through the browser as form fields
- * and knowing one must not be enough to use it.
+ * Nothing is trusted from the browser except intent — every bound is resolved
+ * here — and every statement is scoped by the session's user id.
  */
-
-/** Returned by every action when the caller has no session. */
-const UNAUTHENTICATED = { message: 'Please sign in first.' };
 
 /**
  * Ceiling on how many titles one account may store.
@@ -44,28 +32,7 @@ const UNAUTHENTICATED = { message: 'Please sign in first.' };
  */
 const MAX_ITEMS_PER_USER = 5000;
 
-/**
- * Match a row by id *and* owner.
- *
- * The id alone would be enough to find the row, which is exactly the problem.
- * Someone else's id simply matches nothing.
- */
-function ownedRow(id: string, userId: string) {
-	return and(eq(watchlistItem.id, id), eq(watchlistItem.userId, userId));
-}
-
-/**
- * The scope the share form is asking for, or null when it names nothing.
- *
- * An unchecked box is absent from a form body rather than false, so presence is
- * the whole test. Both actions that write a scope read it through here, which is
- * what keeps "neither box ticked" one rule rather than two.
- */
-function scopeFromShareForm(form: FormData) {
-	return scopeFromChoices(form.has('toWatch'), form.has('watched'));
-}
-
-export const watchlistActions = {
+export const listActions = {
 	/** Save a movie/TV show. Duplicates are silently ignored via the unique index. */
 	add: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
@@ -117,71 +84,6 @@ export const watchlistActions = {
 			.onConflictDoNothing();
 
 		return { added: true };
-	},
-
-	/**
-	 * Turn the calendar feed on, or roll it over.
-	 *
-	 * One action for both, because they are the same operation: a new token
-	 * replaces whatever was there. Rolling over is how somebody takes back a URL
-	 * that ended up somewhere it should not have, and it necessarily breaks every
-	 * subscription made with the old one — which is the point, and which the UI
-	 * says out loud before doing it.
-	 */
-	issueCalendarFeed: async ({ locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-		await issueCalendarToken(locals.user.id);
-		return { calendar: 'issued' as const };
-	},
-
-	/** Turn the calendar feed off, invalidating every subscription to it. */
-	revokeCalendarFeed: async ({ locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-		await revokeCalendarToken(locals.user.id);
-		return { calendar: 'revoked' as const };
-	},
-
-	/**
-	 * Turn the share link on, or roll it over.
-	 *
-	 * The scope arrives with the request rather than being assumed, because the
-	 * two checkboxes and the button are one decision: nobody creates a link and
-	 * then wonders what is on it. Neither box ticked is refused outright — there
-	 * is no way to spell "share my list, showing nothing", and quietly picking a
-	 * default here would publish something the owner did not tick.
-	 */
-	issueShareLink: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
-		const scope = scopeFromShareForm(await request.formData());
-		if (!scope) return fail(400, { message: 'Choose what to share first.' });
-
-		await issueShareToken(locals.user.id, scope);
-		return { share: 'issued' as const };
-	},
-
-	/**
-	 * Change what the existing link shows, keeping the link itself.
-	 *
-	 * Separate from issuing on purpose. Widening a scope is not a request to
-	 * break the URL already sent, and narrowing one only achieves anything if it
-	 * is the same URL that starts showing less.
-	 */
-	updateShareScope: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
-		const scope = scopeFromShareForm(await request.formData());
-		if (!scope) return fail(400, { message: 'Choose what to share first.' });
-
-		await setShareScope(locals.user.id, scope);
-		return { share: 'updated' as const };
-	},
-
-	/** Turn the share link off, so every copy of the URL stops resolving. */
-	revokeShareLink: async ({ locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-		await revokeShareToken(locals.user.id);
-		return { share: 'revoked' as const };
 	},
 
 	/** Remove an item from the list. */
@@ -265,67 +167,6 @@ export const watchlistActions = {
 			.where(ownedRow(id, locals.user.id));
 
 		return { toggled: true, watched };
-	},
-
-	/**
-	 * Choose how long a watched title stays before it is deleted, or turn the
-	 * whole thing off.
-	 *
-	 * Anything that is not one of the offered windows is stored as null — "off" —
-	 * rather than rejected, because the failure mode of a bad value here is
-	 * someone's list emptying itself on a schedule they never picked.
-	 *
-	 * Picking a window also restarts the clock on anything already past it. The
-	 * countdown is only half the feature; the other half is the week of warning
-	 * the card shows before the end, and a title watched two months before you
-	 * turned this on would run out the moment you did — deleted having never once
-	 * said it was going to be. Under archiving that was survivable, because the
-	 * title was still there to restore. It is not survivable now.
-	 *
-	 * So the window means "from here", and everything gets its full run. Turning
-	 * the feature off touches nothing: there is no countdown to restart.
-	 */
-	setAutoDelete: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
-		const form = await request.formData();
-		const days = normalizeDeletionWindow(form.get('days'));
-
-		const db = getDb();
-		await db.update(user).set({ autoDeleteDays: days }).where(eq(user.id, locals.user.id));
-
-		if (days !== null) {
-			const now = new Date();
-			await db
-				.update(watchlistItem)
-				.set({ watchedAt: now })
-				.where(
-					and(
-						eq(watchlistItem.userId, locals.user.id),
-						eq(watchlistItem.watched, true),
-						isNotNull(watchlistItem.watchedAt),
-						lt(watchlistItem.watchedAt, new Date(now.getTime() - days * 86_400_000))
-					)
-				);
-		}
-
-		return { autoDeleteDays: days };
-	},
-
-	/** Reset the deletion countdown for a title without changing anything else. */
-	keepLonger: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		if (!id) return fail(400, { message: 'Missing id.' });
-
-		await getDb()
-			.update(watchlistItem)
-			.set({ watchedAt: new Date() })
-			.where(ownedRow(id, locals.user.id));
-
-		return { kept: true };
 	},
 
 	/**

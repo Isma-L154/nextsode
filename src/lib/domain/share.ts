@@ -9,7 +9,7 @@
  */
 
 /** The parts of a list somebody might be willing to publish. */
-export const SHARE_SCOPES = ['toWatch', 'watched', 'both'] as const;
+const SHARE_SCOPES = ['toWatch', 'watched', 'both'] as const;
 
 export type ShareScope = (typeof SHARE_SCOPES)[number];
 

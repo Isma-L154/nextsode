@@ -92,7 +92,7 @@ export function isDueForDeletion(
  * read. A week is long enough to notice and act, and acting is one tap: the
  * warning carries the button that resets the clock.
  */
-export const DELETION_WARNING_DAYS = 7;
+const DELETION_WARNING_DAYS = 7;
 
 export function shouldWarnAboutDeletion(
 	entry: DeletableEntry,

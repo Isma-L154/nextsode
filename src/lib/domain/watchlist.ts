@@ -25,6 +25,29 @@ export interface WatchlistEntry {
 	nextSeasonAirDate: string | null;
 }
 
+/**
+ * A saved title as the interface renders one.
+ *
+ * `WatchlistEntry` is what the *rules* need — enough to filter, sort and reason
+ * about a title. A card needs that plus the three things only a rendering cares
+ * about: which row it is, what to draw, and when it was finished so the
+ * deletion countdown can be worked out.
+ *
+ * It exists so components can stop importing `WatchlistItem` from the database
+ * schema. That import was type-only, so nothing ever shipped to the browser,
+ * but it pointed presentation at the persistence shape: adding a column changed
+ * the type a card saw, and a card has no business knowing a column exists. The
+ * database row satisfies this structurally, so nothing has to convert anything.
+ */
+export interface SavedTitle extends WatchlistEntry {
+	id: string;
+	/** TMDB's identity, which is what opening or linking to the title needs. */
+	tmdbId: number;
+	posterPath: string | null;
+	/** When it became watched; the clock the deletion warning counts down. */
+	watchedAt: Date | null;
+}
+
 /** Current view options coming from the UI controls. */
 export interface WatchlistView {
 	/** 'all' | 'toWatch' | 'inProgress' | 'upcoming' | 'watched' */

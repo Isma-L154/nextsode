@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import WatchlistCard from './WatchlistCard.svelte';
-import type { WatchlistItem } from '$lib/server/db/schema';
+import type { SavedTitle } from '$lib/domain/watchlist';
 
 /**
  * Which control a saved title gets, and whether what replaces it fits.
@@ -23,16 +23,14 @@ const TILE_WIDTH = 155;
  */
 const LONGEST = { mediaType: 'tv' as const, releaseDate: '2099-09-30' };
 
-function item(over: Partial<WatchlistItem> = {}): WatchlistItem {
+function item(over: Partial<SavedTitle> = {}): SavedTitle {
 	return {
 		id: 'item-1',
-		userId: 'user-1',
 		tmdbId: 1,
 		mediaType: 'movie',
 		title: 'Interstellar',
 		posterPath: null,
 		releaseDate: '2014-11-05',
-		overview: null,
 		voteAverage: 8.5,
 		watched: false,
 		seasonsSeen: 0,
@@ -42,12 +40,11 @@ function item(over: Partial<WatchlistItem> = {}): WatchlistItem {
 		nextSeasonNumber: null,
 		nextSeasonAirDate: null,
 		watchedAt: null,
-		addedAt: new Date(),
 		...over
 	};
 }
 
-function card(over: Partial<WatchlistItem> = {}) {
+function card(over: Partial<SavedTitle> = {}) {
 	const container = document.createElement('div');
 	container.style.width = `${TILE_WIDTH}px`;
 	document.body.appendChild(container);
