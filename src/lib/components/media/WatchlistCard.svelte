@@ -12,7 +12,7 @@
 		shouldWarnAboutDeletion,
 		type DeletionWindow
 	} from '$lib/domain/deletion';
-	import type { WatchlistItem } from '$lib/server/db/schema';
+	import type { SavedTitle } from '$lib/domain/watchlist';
 
 	/**
 	 * A saved title with its controls.
@@ -21,7 +21,7 @@
 	 * completing the tracker is what marks them as watched.
 	 */
 	interface Props {
-		item: WatchlistItem;
+		item: SavedTitle;
 		/** Forwarded to the poster; set for the tiles above the fold. */
 		priority?: boolean;
 		/** The account's auto-delete window, or null when the feature is off. */

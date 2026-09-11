@@ -41,10 +41,10 @@ export interface RecommendationRail {
 }
 
 /** Requested in parallel, so the third costs no wall-clock time — it is a spare. */
-export const MAX_SEEDS = 3;
+const MAX_SEEDS = 3;
 
 /** How many rows to render. Two is enough to be useful without burying trending. */
-export const MAX_RAILS = 2;
+const MAX_RAILS = 2;
 
 /** Below this a row looks like a mistake rather than a suggestion. */
 export const MIN_RAIL_ITEMS = 4;
@@ -56,7 +56,7 @@ export const MIN_RAIL_ITEMS = 4;
  * its suggestions — so the tail was the weakest half of an already secondary
  * section.
  */
-export const MAX_RAIL_ITEMS = 8;
+const MAX_RAIL_ITEMS = 8;
 
 /**
  * Whether a title says anything about taste. Saving is a guess; watching is a

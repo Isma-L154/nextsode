@@ -65,7 +65,7 @@ export interface SeasonProgress {
  * (an entry saved before air dates were tracked). That is the pre-existing
  * behaviour, and the read-path backfill replaces it on the next visit.
  */
-export function watchableSeasons(entry: TrackableEntry): number | null {
+function watchableSeasons(entry: TrackableEntry): number | null {
 	return entry.airedSeasons ?? entry.totalSeasons;
 }
 
