@@ -22,35 +22,21 @@
 		watched?: boolean;
 		/** Extra line under the title, e.g. season progress. */
 		note?: string;
-		/**
-		 * A TV season that has not aired, badged on the poster the same way an
-		 * unreleased film is — the visual language for "not watchable yet" should
-		 * not depend on whether the title is a film or a show.
-		 */
+		/** An unaired season, badged like an unreleased film: same language for both. */
 		upcomingSeason?: { number: number; label: string } | null;
 		/**
-		 * Set on the tiles that land above the fold.
-		 *
-		 * `loading="lazy"` is right for a long grid but wrong for its first row:
-		 * lazy images are invisible to the preload scanner and fetched at low
-		 * priority, so applying it to every poster pushes the one that *is* the
-		 * LCP element to the back of the queue.
-		 *
-		 * Measured against the production build on Discover: LCP 972ms -> ~885ms
-		 * and FCP 640ms -> ~570ms. Local numbers, so the real-network gap is
-		 * likely wider — priority hints matter most under bandwidth contention.
+		 * Set on the tiles above the fold. Lazy images are invisible to the preload
+		 * scanner, so lazy-loading the first row delays the very poster that is the
+		 * LCP element. Measured on Discover: LCP 972ms -> 885ms, FCP 640ms -> 570ms.
 		 */
 		priority?: boolean;
 		/** When provided, the poster and title become clickable to open details. */
 		onSelect?: () => void;
 		/**
-		 * Where the poster and title lead, when following the tile means going
-		 * somewhere rather than opening a sheet over what is already here.
-		 *
-		 * A real anchor rather than a button that navigates, because a grid of
-		 * links is a grid people open in background tabs — which is precisely what
-		 * somebody does with a list they have been sent. Ignored when `onSelect` is
-		 * given; a tile has one behaviour.
+		 * Where the tile leads, when following it means navigating rather than
+		 * opening a sheet. A real anchor, so a shared list can be opened into
+		 * background tabs. Ignored when `onSelect` is given; a tile has one
+		 * behaviour.
 		 */
 		href?: string;
 		/** Action controls rendered in the card footer (buttons, forms, badges). */
@@ -75,12 +61,7 @@
 	/** Which of the two follow behaviours this tile has, if either. */
 	const interactive = $derived(Boolean(onSelect || href));
 
-	/**
-	 * The title's own styling, shared by the button and the anchor forms of it.
-	 *
-	 * Named rather than repeated: the two differ only in which element they are,
-	 * and a class list copied into both is one that will be edited in one.
-	 */
+	/** Shared by the button and anchor forms of the title, so neither drifts. */
 	const TITLE_LINK =
 		'-my-3 block cursor-pointer py-3 text-left text-sm leading-snug font-semibold text-ink transition-colors duration-200 hover:text-brand-hi';
 
@@ -88,8 +69,7 @@
 	const year = $derived(releaseYear(releaseDate));
 	const rating = $derived(voteAverage ? voteAverage.toFixed(1) : null);
 
-	// TMDB returns titles that are still in production alongside released ones,
-	// so the card has to be able to say "not out yet — here's when".
+	// TMDB lists in-production titles alongside released ones.
 	const release = $derived(getReleaseInfo(releaseDate));
 	const unreleased = $derived(release.state !== 'released');
 </script>
@@ -133,18 +113,10 @@
 		></div>
 
 		<!--
-			The badges below are flat, unlike the frosted header and sheet.
-
-			They used to carry `backdrop-blur-sm` for the same look, and at 65-70%
-			black over a poster a 4px blur is invisible — screenshots of a badge with
-			and without it are indistinguishable. What it was not was free: each one
-			is a compositing layer the compositor re-samples every frame, and there
-			are two per card. On a grid of 77 titles that is 154 of them, and
-			removing them halved the renderer's work during a scroll (794ms -> 392ms
-			over 300 frames, `Commit` 1.19ms -> 0.25ms per frame, 4x CPU throttle).
-
-			The two places blur is still worth its cost — the sticky header and the
-			sheet — are one element each and sit over genuinely moving content.
+			Flat, not frosted: do not add `backdrop-blur` here. Over 65-70% black a
+			4px blur is invisible, and each badge is a compositing layer re-sampled
+			every frame — two per card, 154 on a grid of 77. Removing them halved
+			the renderer's scroll work (794ms -> 392ms over 300 frames, 4x throttle).
 		-->
 
 		<span
@@ -225,18 +197,12 @@
 	<div class="flex flex-1 flex-col gap-1 p-3">
 		{#if interactive}
 			<!--
-				`py-3 -my-3` grows the hit area to the 44px a thumb needs without
-				moving the text a pixel. The poster above is the same action and a
-				much larger target, so this is the secondary route — but a 19px-tall
-				line was not a target at all.
+				`py-3 -my-3` buys the 44px a thumb needs without moving the text.
 
-				The clamp belongs to the span, not to the button, and the two reasons
-				are separate. `-webkit-line-clamp` needs a `-webkit-box`, which a
-				`<button>` refuses to become — it blockifies to `flow-root`, leaving
-				the clamp inert. And `overflow: hidden` clips at the *padding* box, so
-				with padding on the same element a third line still paints inside it —
-				straight over the year underneath, which the negative margin has pulled
-				up to meet it. A padding-free element clips where its text ends.
+				The clamp must stay on the span, for two separate reasons:
+				`-webkit-line-clamp` needs a `-webkit-box`, which a `<button>` refuses
+				to become; and `overflow: hidden` clips at the padding box, so a third
+				line would paint over the year the negative margin pulled up to meet.
 			-->
 			{#if onSelect}
 				<button type="button" onclick={onSelect} {title} class={TITLE_LINK}>
