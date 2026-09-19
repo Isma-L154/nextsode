@@ -3,6 +3,7 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
 	import SeasonTracker from './SeasonTracker.svelte';
+	import { enhance } from '$app/forms';
 	import { getSeasonProgress } from '$lib/domain/progress';
 	import { progressNote } from '$lib/domain/episodes';
 	import { posterUrl } from '$lib/format/tmdb-image';
@@ -22,9 +23,11 @@
 		items: SavedTitle[];
 		onSelect: (item: SavedTitle) => void;
 		onSetSeasons: (item: SavedTitle) => SubmitFunction;
+		/** Finishes a show the season stepper does not apply to. */
+		onToggle: (item: SavedTitle) => SubmitFunction;
 	}
 
-	let { items, onSelect, onSetSeasons }: Props = $props();
+	let { items, onSelect, onSetSeasons, onToggle }: Props = $props();
 </script>
 
 {#if items.length > 0}
@@ -80,13 +83,34 @@
 							{/if}
 						</div>
 
-						<SeasonTracker
-							itemId={item.id}
-							title={item.title}
-							{progress}
-							onSubmit={onSetSeasons(item)}
-							variant="rail"
-						/>
+						<!--
+							A show with one aired season has no stepper to offer — a 0-to-1
+							counter is friction, and drawing one anyway printed "0/0" beside an
+							empty bar for a title the note above had just placed at S1E4. It
+							gets the card's own control instead: the one thing left to say
+							about a single season is that it is finished.
+						-->
+						{#if progress.trackable}
+							<SeasonTracker
+								itemId={item.id}
+								title={item.title}
+								{progress}
+								onSubmit={onSetSeasons(item)}
+								variant="rail"
+							/>
+						{:else}
+							<form method="POST" action="?/toggleWatched" use:enhance={onToggle(item)}>
+								<input type="hidden" name="id" value={item.id} />
+								<button
+									type="submit"
+									aria-label={`Mark ${item.title} as watched`}
+									class="flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-mint/15 px-2 text-xs font-semibold text-mint transition-colors duration-200 hover:bg-mint/25 active:scale-[0.98]"
+								>
+									<Icon name="check" size={14} stroke={2.5} />
+									<span class="truncate">Watched</span>
+								</button>
+							</form>
+						{/if}
 					</div>
 				</article>
 			{/each}

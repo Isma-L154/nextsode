@@ -59,13 +59,19 @@ export interface SeasonProgress {
 }
 
 /**
- * How many seasons an entry can have watched, given what has aired.
+ * How many seasons an entry can have watched, given what has aired — or null
+ * when the answer is unknown, which for a film it always is.
  *
  * Falls back to the total only when the aired count has not been resolved yet
  * (an entry saved before air dates were tracked). That is the pre-existing
  * behaviour, and the read-path backfill replaces it on the next visit.
+ *
+ * Exported because "is there a ceiling at all" and "is the ceiling above one"
+ * are two different questions, and callers kept reaching for `isTrackable` to
+ * ask the first — see the note on it.
  */
-function watchableSeasons(entry: TrackableEntry): number | null {
+export function seasonCeiling(entry: TrackableEntry): number | null {
+	if (entry.mediaType !== 'tv') return null;
 	return entry.airedSeasons ?? entry.totalSeasons;
 }
 
@@ -76,8 +82,8 @@ function watchableSeasons(entry: TrackableEntry): number | null {
  * announced, which is the case that used to render a misleading "0 of 2".
  */
 export function isTrackable(entry: TrackableEntry): boolean {
-	const watchable = watchableSeasons(entry);
-	return entry.mediaType === 'tv' && watchable !== null && watchable > 1;
+	const watchable = seasonCeiling(entry);
+	return watchable !== null && watchable > 1;
 }
 
 export function getSeasonProgress(entry: TrackableEntry): SeasonProgress {
@@ -93,7 +99,7 @@ export function getSeasonProgress(entry: TrackableEntry): SeasonProgress {
 		};
 	}
 
-	const airedSeasons = watchableSeasons(entry) as number;
+	const airedSeasons = seasonCeiling(entry) as number;
 	const totalSeasons = Math.max(entry.totalSeasons ?? airedSeasons, airedSeasons);
 	const seasonsSeen = clampSeasons(entry.seasonsSeen, airedSeasons);
 	const moreComing = totalSeasons > airedSeasons;

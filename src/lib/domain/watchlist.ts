@@ -1,4 +1,4 @@
-import { isTrackable } from './progress';
+import { seasonCeiling } from './progress';
 import { hasStarted } from './episodes';
 import { hasUpcoming, isInUpcomingWindow, upcomingSortKey, type UpcomingFilter } from './upcoming';
 import type { MediaType } from '../types';
@@ -133,9 +133,18 @@ export function applyWatchlistView<T extends WatchlistEntry>(
  * "Started" is the episode bookmark as well as the season counter, or a show you
  * are three episodes into would answer the question correctly on its own card
  * and still be missing from the rail that asks it.
+ *
+ * The bar is one aired season, not the two that `isTrackable` asks for. That
+ * predicate decides whether the season *stepper* earns its place, and answers
+ * no below two seasons because a 0-to-1 counter is pure friction — a question
+ * with nothing to do with this one. Borrowing it meant a brand-new show could
+ * never be in the middle of anything, however many of its episodes had been
+ * ticked off: the episode picker recorded them, the card read "Next: S1E4",
+ * and the Watching tab still said nothing was being watched.
  */
 export function isInProgress(item: WatchlistEntry): boolean {
-	return isTrackable(item) && hasStarted(item) && !item.watched;
+	const ceiling = seasonCeiling(item);
+	return ceiling !== null && ceiling >= 1 && hasStarted(item) && !item.watched;
 }
 
 /**
