@@ -251,6 +251,7 @@
 			items={continueWatching}
 			onSelect={(item) => (selected = item)}
 			onSetSeasons={seasonProgressToast}
+			onToggle={() => withToast('Marked as watched')}
 		/>
 
 		<div class="mb-4">

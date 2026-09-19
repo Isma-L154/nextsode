@@ -91,6 +91,79 @@ describe('applyWatchlistView — filtering', () => {
 		expect(countByStatus(partWay, now).inProgress).toBe(1);
 	});
 
+	/**
+	 * A brand-new show has exactly one aired season, which is below the bar the
+	 * season *stepper* sets for itself — and "in progress" used to borrow that
+	 * bar. The episode picker happily recorded three episodes of it; the Watching
+	 * tab then reported nothing was being watched.
+	 */
+	it('counts a part-watched single-season show as in progress', () => {
+		const newShow = [
+			entry({
+				title: 'Lanterns',
+				mediaType: 'tv',
+				seasonsSeen: 0,
+				episodesIntoSeason: 3,
+				totalSeasons: 1,
+				airedSeasons: 1
+			})
+		];
+
+		const result = applyWatchlistView(newShow, { ...baseView, status: 'inProgress' }, now);
+		expect(result.map((i) => i.title)).toEqual(['Lanterns']);
+		expect(countByStatus(newShow, now).inProgress).toBe(1);
+	});
+
+	/**
+	 * The season after the only aired one is still announced, so the ceiling is
+	 * one and the same rule applies — this is the case the stepper's own bar was
+	 * written for, which is exactly why "in progress" must not share it.
+	 */
+	it('counts a first season in progress while a second is only announced', () => {
+		const newShow = [
+			entry({
+				title: 'Neagley',
+				mediaType: 'tv',
+				seasonsSeen: 0,
+				episodesIntoSeason: 2,
+				totalSeasons: 2,
+				airedSeasons: 1,
+				nextSeasonNumber: 2,
+				nextSeasonAirDate: '2027-01-15'
+			})
+		];
+
+		expect(countByStatus(newShow, now).inProgress).toBe(1);
+	});
+
+	/** Nothing watched is nothing watched, however many seasons have aired. */
+	it('leaves an untouched single-season show out of in progress', () => {
+		const untouched = [
+			entry({
+				title: 'Unstarted',
+				mediaType: 'tv',
+				seasonsSeen: 0,
+				episodesIntoSeason: 0,
+				totalSeasons: 1,
+				airedSeasons: 1
+			})
+		];
+
+		expect(countByStatus(untouched, now).inProgress).toBe(0);
+	});
+
+	/**
+	 * A show whose season data has not resolved yet has no position to report, so
+	 * it cannot be in the middle of anything.
+	 */
+	it('leaves a show with unresolved season data out of in progress', () => {
+		const unresolved = [
+			entry({ title: 'Unknown', mediaType: 'tv', episodesIntoSeason: 3, airedSeasons: null })
+		];
+
+		expect(countByStatus(unresolved, now).inProgress).toBe(0);
+	});
+
 	it('filters by "upcoming" status', () => {
 		const result = applyWatchlistView(withUpcoming, { ...baseView, status: 'upcoming' }, now);
 		expect(result.map((i) => i.title)).toEqual(['Dune: Part Three', 'Untitled Sequel']);
