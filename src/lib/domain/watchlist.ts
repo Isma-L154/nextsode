@@ -1,28 +1,34 @@
 import { seasonCeiling } from './progress';
 import { hasStarted } from './episodes';
-import { hasUpcoming, isInUpcomingWindow, upcomingSortKey, type UpcomingFilter } from './upcoming';
-import type { MediaType } from '../types';
+import {
+	hasUpcoming,
+	isInUpcomingWindow,
+	upcomingSortKey,
+	type UpcomingEntry,
+	type UpcomingFilter
+} from './upcoming';
 
 /**
  * Pure, framework-agnostic filtering and sorting for the saved list.
  * Extracted from the UI so it can be unit-tested in isolation.
  */
 
-/** Minimal shape needed to filter/sort; structurally compatible with a DB row. */
-export interface WatchlistEntry {
+/**
+ * Minimal shape needed to filter/sort; structurally compatible with a DB row.
+ *
+ * The four fields describing what a title is still waiting on come from
+ * `UpcomingEntry`, because the rules that read them live there and this module
+ * calls into them. Inheriting rather than restating keeps one definition.
+ */
+export interface WatchlistEntry extends UpcomingEntry {
 	title: string;
-	mediaType: MediaType;
 	watched: boolean;
 	voteAverage: number | null;
-	releaseDate: string | null;
 	seasonsSeen: number;
 	/** Episodes into the season after `seasonsSeen` — see `domain/episodes`. */
 	episodesIntoSeason: number;
 	totalSeasons: number | null;
 	airedSeasons: number | null;
-	/** The next season still to premiere; null when there is none. */
-	nextSeasonNumber: number | null;
-	nextSeasonAirDate: string | null;
 }
 
 /**

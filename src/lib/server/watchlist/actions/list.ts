@@ -13,7 +13,8 @@ import { resolveEpisodeTarget, seasonBoundary } from '$lib/domain/episodes';
 import { canMarkWatched } from '$lib/domain/release';
 import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from '../seasons';
 import { watchedStamp } from '../stamp';
-import { UNAUTHENTICATED, ownedRow } from './shared';
+import { UNAUTHENTICATED } from './shared';
+import { ownedRow } from '../owned';
 import type { MediaType } from '$lib/types';
 
 /**

@@ -4,7 +4,8 @@ import { getDb } from '../../db';
 import { user, watchlistItem } from '../../db/schema';
 import { clip } from '../../form';
 import { normalizeDeletionWindow } from '$lib/domain/deletion';
-import { UNAUTHENTICATED, ownedRow } from './shared';
+import { UNAUTHENTICATED } from './shared';
+import { ownedRow } from '../owned';
 
 /**
  * Account-level choices about the list rather than edits to it: how long a

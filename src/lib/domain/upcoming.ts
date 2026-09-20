@@ -1,5 +1,5 @@
 import { getReleaseInfo } from './release';
-import type { WatchlistEntry } from './watchlist';
+import type { MediaType } from '../types';
 
 /**
  * "What is still coming" for a saved title.
@@ -28,11 +28,24 @@ export interface UpcomingInfo {
 	seasonNumber: number | null;
 }
 
-/** The fields this reasoning needs — a subset of a watchlist row. */
-export type UpcomingEntry = Pick<
-	WatchlistEntry,
-	'mediaType' | 'releaseDate' | 'nextSeasonNumber' | 'nextSeasonAirDate'
->;
+/**
+ * The fields this reasoning needs, and nothing else.
+ *
+ * Declared here rather than `Pick`ed from `WatchlistEntry`, which is the module
+ * that calls into this one: deriving it the other way made the two files import
+ * each other. That cycle was type-only and so cost nothing at runtime, but it
+ * pointed the lower-level module at the higher-level one and left every tool
+ * that looks for cycles with a finding to report forever.
+ *
+ * `WatchlistEntry` extends this, so the two cannot drift apart.
+ */
+export interface UpcomingEntry {
+	mediaType: MediaType;
+	releaseDate: string | null;
+	/** The next season still to premiere; null when there is none. */
+	nextSeasonNumber: number | null;
+	nextSeasonAirDate: string | null;
+}
 
 /**
  * What this entry is still waiting on, or null when nothing.
