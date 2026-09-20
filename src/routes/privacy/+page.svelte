@@ -5,6 +5,7 @@
 	import Seo from '$lib/components/Seo.svelte';
 	import { pageSchema } from '$lib/format/seo';
 	import Prose from '$lib/components/ui/Prose.svelte';
+	import { CONTACT_EMAIL, CONTACT_MAILTO } from '$lib/contact';
 
 	const signedIn = $derived(Boolean(page.data.user));
 
@@ -23,7 +24,7 @@
 	schema={pageSchema(page.data.origin, '/privacy', TITLE, DESCRIPTION)}
 />
 
-<Prose title="Privacy" updated="15 August 2026">
+<Prose title="Privacy" updated="20 September 2026">
 	<p>
 		The short version: Nextsode keeps the least it can get away with, shows you no advertising,
 		tracks you nowhere, and lets you delete everything from this page in one step.
@@ -150,9 +151,7 @@
 
 	<h2>Contact</h2>
 	<p>
-		For anything about your data — including a copy of it — use the address listed on the
-		<a href="https://github.com/Isma-L154/nextsode" target="_blank" rel="noopener noreferrer">
-			project repository
-		</a>.
+		For anything about your data — including a copy of it — write to
+		<a href={CONTACT_MAILTO} rel="external">{CONTACT_EMAIL}</a>.
 	</p>
 </Prose>

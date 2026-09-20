@@ -4,6 +4,7 @@
 	import Seo from '$lib/components/Seo.svelte';
 	import { pageSchema } from '$lib/format/seo';
 	import Prose from '$lib/components/ui/Prose.svelte';
+	import { CONTACT_EMAIL, CONTACT_MAILTO } from '$lib/contact';
 
 	// Declared once: the meta tags and the structured data have to agree, and
 	// two copies of a sentence are two chances for them to drift apart.
@@ -20,7 +21,7 @@
 	schema={pageSchema(page.data.origin, '/terms', TITLE, DESCRIPTION)}
 />
 
-<Prose title="Terms of Use" updated="15 August 2026">
+<Prose title="Terms of Use" updated="20 September 2026">
 	<p>
 		Nextsode is a free service for keeping a personal list of films and TV shows and tracking how
 		far into a series you are. By using it you agree to what follows. If you do not, please do not
@@ -101,9 +102,11 @@
 
 	<h2>Contact</h2>
 	<p>
-		Questions about these terms, or about the service, can be sent to the address listed on the
+		Questions about these terms, or about the service, can be sent to
+		<a href={CONTACT_MAILTO} rel="external">{CONTACT_EMAIL}</a>. Bugs and feature requests are
+		better raised on the
 		<a href="https://github.com/Isma-L154/nextsode" target="_blank" rel="noopener noreferrer">
 			project repository
-		</a>.
+		</a>, where other people can see them.
 	</p>
 </Prose>

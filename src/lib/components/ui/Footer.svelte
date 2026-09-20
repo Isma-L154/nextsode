@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import tmdbLogo from '$lib/assets/tmdb.svg';
+	import { CONTACT_EMAIL, CONTACT_MAILTO } from '$lib/contact';
 
 	/**
-	 * Attribution and the legal links.
+	 * Attribution, the way to reach us, and the legal links.
 	 *
 	 * The TMDB notice is not decoration: their API terms require this exact
 	 * sentence and their unmodified logo, kept less prominent than the app's own
@@ -35,8 +36,23 @@
 			`-my-2.5` with matching padding: the links keep their position and their
 			spacing, and gain the vertical hit area a thumb needs. A 16px-tall legal
 			link is a link you have to aim at.
+
+			The address is spelled out rather than hidden behind the word "Contact":
+			it is the one thing on this page somebody may want to copy, write down or
+			reach from a machine that has no mail client wired up.
+
+			`rel="external"` on the mailto: it hands the click to the mail client
+			instead of the SvelteKit router, which is what a scheme the router cannot
+			navigate needs anyway.
 		-->
-		<nav aria-label="Legal" class="-my-2.5 flex flex-shrink-0 items-center gap-2">
+		<nav aria-label="Footer" class="-my-2.5 flex flex-shrink-0 items-center gap-2">
+			<a
+				href={CONTACT_MAILTO}
+				rel="external"
+				class="px-2 py-2.5 transition-colors duration-200 hover:text-ink"
+			>
+				{CONTACT_EMAIL}
+			</a>
 			<a href={resolve('/terms')} class="px-2 py-2.5 transition-colors duration-200 hover:text-ink">
 				Terms
 			</a>
