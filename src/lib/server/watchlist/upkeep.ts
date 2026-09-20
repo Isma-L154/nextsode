@@ -8,6 +8,7 @@ import { isUpcoming } from '$lib/domain/release';
 import { resolveSeasonInfo } from './seasons';
 import { resolveReleaseDate } from './releases';
 import { watchedStamp } from './stamp';
+import { ownedRow } from './owned';
 import type { WatchlistRow } from './queries';
 
 /**
@@ -100,7 +101,7 @@ export async function refreshSeasonData(items: WatchlistRow[]): Promise<Watchlis
 			};
 
 			patches.set(id, patch);
-			await db.update(watchlistItem).set(patch).where(eq(watchlistItem.id, id));
+			await db.update(watchlistItem).set(patch).where(ownedRow(id, source.userId));
 		})
 	);
 
@@ -140,6 +141,7 @@ export async function refreshReleaseDates(items: WatchlistRow[]): Promise<Watchl
 	const resolved = await Promise.all(
 		pending.map(async (item) => ({
 			id: item.id,
+			userId: item.userId,
 			current: item.releaseDate,
 			answer: await resolveReleaseDate(item.mediaType, item.tmdbId)
 		}))
@@ -149,7 +151,7 @@ export async function refreshReleaseDates(items: WatchlistRow[]): Promise<Watchl
 	const patches = new Map<string, string | null>();
 
 	await Promise.all(
-		resolved.map(async ({ id, current, answer }) => {
+		resolved.map(async ({ id, userId, current, answer }) => {
 			// No answer, or the same answer: nothing to write. Skipping the unchanged
 			// case is what keeps a list of patient titles from issuing a write per
 			// row on every single page load.
@@ -159,7 +161,7 @@ export async function refreshReleaseDates(items: WatchlistRow[]): Promise<Watchl
 			await db
 				.update(watchlistItem)
 				.set({ releaseDate: answer.releaseDate })
-				.where(eq(watchlistItem.id, id));
+				.where(ownedRow(id, userId));
 		})
 	);
 

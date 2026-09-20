@@ -224,4 +224,19 @@ describe('refreshReleaseDates', () => {
 
 		expect(details.mock.calls.length).toBeLessThanOrEqual(8);
 	});
+
+	/**
+	 * The same belt and braces the delete above gets, for the same reason. These
+	 * rows arrive from one account's own list today, so nothing here is reachable
+	 * from a browser — the guard is what keeps that true if they ever arrive from
+	 * somewhere else, such as a shared list or the calendar feed.
+	 */
+	it('cannot rewrite another account s row, even when handed it', async () => {
+		const theirs = await saveTitle('bob', { releaseDate: isoIn(30), watched: false });
+		details.mockResolvedValue({ releaseDate: '2020-01-01' });
+
+		await refreshReleaseDates([{ ...theirs, userId: 'alice' }]);
+
+		expect(await storedDate(theirs.id)).toBe(isoIn(30));
+	});
 });
