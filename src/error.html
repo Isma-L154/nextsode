@@ -1,0 +1,86 @@
+<!doctype html>
+<!--
+	The fallback for when the root layout itself fails, so neither the app shell
+	nor the bundled stylesheet can be relied on. Everything is inline and the
+	colours are copied from the design tokens in `routes/layout.css`.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex" />
+		<meta name="theme-color" content="#07070e" />
+		<title>Something went wrong — Nextsode</title>
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+			body {
+				margin: 0;
+				min-height: 100dvh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 1.5rem;
+				box-sizing: border-box;
+				background: #07070e;
+				color: #f5f5fa;
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					sans-serif;
+				text-align: center;
+			}
+			p {
+				margin: 0;
+			}
+			.eyebrow {
+				font-size: 0.75rem;
+				font-weight: 600;
+				letter-spacing: 0.05em;
+				text-transform: uppercase;
+				color: #8a8aa3;
+			}
+			h1 {
+				margin: 0.25rem 0 0;
+				font-size: 1.75rem;
+				font-weight: 800;
+			}
+			.hint {
+				margin-top: 0.5rem;
+				max-width: 24rem;
+				font-size: 0.875rem;
+				color: #a5a5bd;
+			}
+			a {
+				display: inline-flex;
+				align-items: center;
+				min-height: 2.75rem;
+				margin-top: 1.75rem;
+				padding: 0 1.25rem;
+				border-radius: 0.75rem;
+				background: #6366f1;
+				color: #fff;
+				font-size: 0.875rem;
+				font-weight: 600;
+				text-decoration: none;
+			}
+			a:hover {
+				background: #818cf8;
+			}
+			a:focus-visible {
+				outline: 2px solid #818cf8;
+				outline-offset: 2px;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<p class="eyebrow">Error %sveltekit.status%</p>
+			<h1>Something went wrong</h1>
+			<p class="hint">That one is on us, not you. Please try again in a moment.</p>
+			<a href="/">Back to Nextsode</a>
+		</main>
+	</body>
+</html>
