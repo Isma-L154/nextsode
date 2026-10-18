@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { schemaScript } from '$lib/format/seo';
+	import { SITE_IMAGE, schemaScript } from '$lib/format/seo';
 
 	/**
 	 * The tags that decide how a page looks outside the app.
@@ -68,7 +68,7 @@
 	const canonical = $derived(`${origin}${path}`);
 	// Absolute, because every consumer of these tags fetches the image from
 	// somewhere that is not this page.
-	const image = $derived(pageImage ?? `${origin}/og.png`);
+	const image = $derived(pageImage ?? `${origin}${SITE_IMAGE.path}`);
 
 	/**
 	 * The declared dimensions belong to `og.png` alone.
@@ -97,8 +97,8 @@
 	<meta property="og:url" content={canonical} />
 	<meta property="og:image" content={image} />
 	{#if ownImage}
-		<meta property="og:image:width" content="1200" />
-		<meta property="og:image:height" content="630" />
+		<meta property="og:image:width" content={String(SITE_IMAGE.width)} />
+		<meta property="og:image:height" content={String(SITE_IMAGE.height)} />
 	{/if}
 	<meta property="og:image:alt" content={imageAlt} />
 	<meta property="og:locale" content="en_US" />

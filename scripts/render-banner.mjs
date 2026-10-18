@@ -2,18 +2,24 @@ import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 /**
- * Renders the repository banner from `docs/brand/banner.html`.
+ * Renders the brand images from `docs/brand/banner.html`: the repository banner
+ * and the site's card, which is its link preview and search result image.
  *
- * The banner is drawn rather than painted: it is built from the same palette,
- * typeface and film mark the app itself uses, so it stays right when the brand
- * moves. Regenerate with `npm run brand`.
+ * They are drawn rather than painted: built from the same palette, typeface and
+ * film mark the app itself uses, so they stay right when the brand moves. One
+ * source with two variants, so the card cannot drift from the banner either.
+ * Regenerate with `npm run brand`.
  *
  * Deliberately contains no recognisable characters. Posters here are archetypes
  * — a spaceship, a crown, a silhouette in a hat — because "films and TV" reads
  * perfectly well from those, and putting somebody else's characters on a public
  * repository is a legal problem rather than a design one.
  */
-const SIZE = { width: 1280, height: 640 };
+const TARGETS = [
+	{ variant: 'banner', width: 1280, height: 640, path: 'docs/brand/nextsode-banner.png' },
+	// The size `SITE_IMAGE` in src/lib/format/seo.ts declares.
+	{ variant: 'card', width: 1200, height: 630, path: 'static/og.png' }
+];
 
 /** Inlined as data URIs: the render must not depend on a network or a font cache. */
 function font(path) {
@@ -31,13 +37,17 @@ const html = readFileSync('docs/brand/banner.html', 'utf8')
 	);
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: SIZE, deviceScaleFactor: 1 });
-await page.setContent(html, { waitUntil: 'load' });
-await page.evaluate(() => document.fonts.ready);
-await page.locator('#banner').screenshot({ path: 'docs/brand/nextsode-banner.png' });
-await browser.close();
 
-const bytes = readFileSync('docs/brand/nextsode-banner.png').length;
-console.log(
-	`docs/brand/nextsode-banner.png — ${SIZE.width}x${SIZE.height}, ${Math.round(bytes / 1024)}KB`
-);
+for (const { variant, width, height, path } of TARGETS) {
+	const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+	await page.setContent(html, { waitUntil: 'load' });
+	await page.evaluate((name) => (document.documentElement.dataset.variant = name), variant);
+	await page.evaluate(() => document.fonts.ready);
+	await page.locator('#banner').screenshot({ path });
+	await page.close();
+
+	const bytes = readFileSync(path).length;
+	console.log(`${path} — ${width}x${height}, ${Math.round(bytes / 1024)}KB`);
+}
+
+await browser.close();

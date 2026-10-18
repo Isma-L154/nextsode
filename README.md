@@ -81,9 +81,10 @@ OAuth client ID for a Web application and add one redirect URI per environment �
 Other scripts: `npm run lint`, `npm run check`, `npm run test:unit`,
 `npm run test:e2e`.
 
-`npm run brand` regenerates the README banner from `docs/brand/banner.html`. It
-is drawn rather than painted — same palette, typefaces and film mark as the app —
-so editing that file and re-running the script is how the image changes.
+`npm run brand` regenerates the README banner and the site's link preview and
+search image (`static/og.png`) from `docs/brand/banner.html`. They are drawn
+rather than painted — same palette, typefaces and film mark as the app — so
+editing that file and re-running the script is how the images change.
 
 `npm run gen` regenerates `worker-configuration.d.ts` from the bindings in
 `wrangler.jsonc`. Run it when you add or change a binding, and commit the
