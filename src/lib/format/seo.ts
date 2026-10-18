@@ -49,6 +49,15 @@ const TAGLINE =
  */
 const MAX_SCHEMA_CAST = 5;
 
+/**
+ * The site's own picture, for any page without a subject of its own.
+ *
+ * Mostly scene, barely any words: Google declines logos and text-heavy images
+ * as result thumbnails, and an image it declines is one it replaces with
+ * whatever poster the page happened to be showing. Rendered by `npm run brand`.
+ */
+export const SITE_IMAGE = { path: '/og.png', width: 1200, height: 630 } as const;
+
 /** Stable node ids, so pages can point at the site entity instead of redescribing it. */
 const websiteId = (origin: string) => `${origin}/#website`;
 const appId = (origin: string) => `${origin}/#app`;
@@ -70,6 +79,10 @@ const appId = (origin: string) => `${origin}/#app`;
  * pointing back. That is what this link is: corroboration, not a backlink.
  *
  * `alternateName` covers what people type instead of the bare word.
+ *
+ * The `WebPage` node is the homepage itself, and exists for `primaryImageOfPage`.
+ * The homepage is a wall of trending posters, and without a stated image Google
+ * picks one of them as the result thumbnail.
  *
  * Emitted as a `@graph` so the nodes can reference each other by `@id`; three
  * pages each shipping an unrelated object read as three sites, not one.
@@ -107,6 +120,21 @@ export function siteSchema(origin: string): Record<string, unknown> {
 				isPartOf: { '@id': websiteId(origin) },
 				sameAs: [REPOSITORY_URL],
 				offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
+			},
+			{
+				'@type': 'WebPage',
+				'@id': `${origin}/#page`,
+				name: BRAND,
+				url: `${origin}/`,
+				inLanguage: 'en',
+				isPartOf: { '@id': websiteId(origin) },
+				about: { '@id': appId(origin) },
+				primaryImageOfPage: {
+					'@type': 'ImageObject',
+					url: `${origin}${SITE_IMAGE.path}`,
+					width: SITE_IMAGE.width,
+					height: SITE_IMAGE.height
+				}
 			}
 		]
 	};

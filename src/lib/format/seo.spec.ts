@@ -52,7 +52,29 @@ function node(type: string): Record<string, unknown> {
 describe('siteSchema', () => {
 	it('describes the site and the app as one graph', () => {
 		const graph = siteSchema(ORIGIN)['@graph'] as Record<string, unknown>[];
-		expect(graph.map((entry) => entry['@type'])).toEqual(['WebSite', 'WebApplication']);
+		expect(graph.map((entry) => entry['@type'])).toEqual(['WebSite', 'WebApplication', 'WebPage']);
+	});
+
+	/**
+	 * Google picks a result's thumbnail itself, and left alone it picks whatever
+	 * trending poster the homepage happened to show when it was crawled. This is
+	 * the strongest hint it accepts for which image represents the page.
+	 */
+	it('names the image that represents the homepage', () => {
+		expect(node('WebPage').primaryImageOfPage).toEqual({
+			'@type': 'ImageObject',
+			url: `${ORIGIN}/og.png`,
+			width: 1200,
+			height: 630
+		});
+	});
+
+	it('ties the homepage to the site and the app', () => {
+		const homepage = node('WebPage');
+		expect(homepage['@id']).toBe(`${ORIGIN}/#page`);
+		expect(homepage.url).toBe(`${ORIGIN}/`);
+		expect(homepage.isPartOf).toEqual({ '@id': `${ORIGIN}/#website` });
+		expect(homepage.about).toEqual({ '@id': `${ORIGIN}/#app` });
 	});
 
 	it('names the site, which is what a result gets titled with', () => {

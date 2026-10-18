@@ -377,6 +377,27 @@
 			.dot.empty {
 				background: rgba(129, 140, 248, 0.25);
 			}
+
+			/*
+				The card: the same scene as the site's link preview and search image.
+
+				Google declines logos and text-heavy pictures as result thumbnails, so
+				the copy goes and the scene carries it. The wordmark stays, small and
+				centred over the set, because Google crops thumbnails towards a square
+				and a centred name survives that where a corner one would not.
+			*/
+			[data-variant='card'] #banner {
+				width: 1200px;
+				height: 630px;
+			}
+			[data-variant='card'] :is(.scrim, .tagline, .sub, .chip) {
+				display: none;
+			}
+			[data-variant='card'] .brand {
+				left: 50%;
+				top: 44px;
+				transform: translateX(-50%);
+			}
 		</style>
 	</head>
 	<body>
