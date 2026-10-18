@@ -1,7 +1,6 @@
 <script lang="ts">
 	import './layout.css';
 	import type { Snippet } from 'svelte';
-	import favicon from '$lib/assets/favicon.svg';
 	import AppShell from '$lib/components/ui/AppShell.svelte';
 	import Toaster from '$lib/components/ui/Toaster.svelte';
 	import type { LayoutData } from './$types';
@@ -17,9 +16,13 @@
 	hold on to the URL they first saw, and a hashed filename changes it on every
 	deploy. The SVG covers modern browsers, the PNG covers the crawlers and
 	launchers that still do not accept one.
+
+	The SVG is not imported for the same reason, and for a worse one: it is small
+	enough that Vite inlines it as a `data:` URI, which is not a URL a crawler can
+	fetch at all.
 -->
 <svelte:head>
-	<link rel="icon" href={favicon} type="image/svg+xml" />
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 	<link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
 	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 </svelte:head>
