@@ -1,5 +1,5 @@
-import type { SubmitFunction } from '@sveltejs/kit';
-import type { SavedEntry } from '$lib/types';
+import type { SubmitFunction } from '$app/forms';
+import type { SavedEntry } from '#lib/types.js';
 
 /**
  * Saved-state changes that have been asked for but not yet answered.

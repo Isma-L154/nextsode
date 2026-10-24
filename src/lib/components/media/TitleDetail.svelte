@@ -6,7 +6,7 @@
 	import AddToCalendar from './AddToCalendar.svelte';
 	import WatchProviders from './WatchProviders.svelte';
 	import CastRow from './CastRow.svelte';
-	import type { MediaDetails, MediaResult } from '$lib/types';
+	import type { MediaDetails, MediaResult } from '#lib/types.js';
 
 	/**
 	 * Everything known about one title, in the order it is worth knowing it.

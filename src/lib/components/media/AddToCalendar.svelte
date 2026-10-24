@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { googleCalendarUrl } from '$lib/domain/calendar';
-	import type { MediaDetails } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { googleCalendarUrl } from '#lib/domain/calendar.js';
+	import type { MediaDetails } from '#lib/types.js';
 
 	/**
 	 * One tap to put this title's date in a calendar.

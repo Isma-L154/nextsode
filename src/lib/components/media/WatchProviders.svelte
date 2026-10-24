@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { uniqueBy } from '$lib/domain/media';
-	import { providerLogoUrl } from '$lib/format/tmdb-image';
-	import type { WatchOptions, WatchProvider } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { uniqueBy } from '#lib/domain/media.js';
+	import { providerLogoUrl } from '#lib/format/tmdb-image.js';
+	import type { WatchOptions, WatchProvider } from '#lib/types.js';
 
 	/**
 	 * Where a title can actually be watched, in the visitor's country.

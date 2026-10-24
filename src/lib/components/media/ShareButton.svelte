@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { copyToClipboard } from '$lib/forms/feedback';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { copyToClipboard } from '#lib/forms/feedback.js';
 
 	/**
 	 * Hand this title's public link to somebody.

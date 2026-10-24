@@ -1,31 +1,31 @@
 <script lang="ts">
+	import type { SubmitFunction } from '$app/forms';
 	import { tick, untrack } from 'svelte';
 	import { page } from '$app/state';
-	import { afterNavigate, replaceState } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import type { SubmitFunction } from '@sveltejs/kit';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import SearchBar from '$lib/components/ui/SearchBar.svelte';
-	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import PosterGrid from '$lib/components/media/PosterGrid.svelte';
-	import PosterGridSkeleton from '$lib/components/media/PosterGridSkeleton.svelte';
-	import DiscoverCard from '$lib/components/media/DiscoverCard.svelte';
-	import RecommendationRail from '$lib/components/media/RecommendationRail.svelte';
-	import MediaDetailModal from '$lib/components/media/MediaDetailModal.svelte';
-	import PeopleRail from '$lib/components/media/PeopleRail.svelte';
-	import PersonSheet from '$lib/components/media/PersonSheet.svelte';
-	import GoogleButton from '$lib/components/auth/GoogleButton.svelte';
-	import Seo from '$lib/components/Seo.svelte';
-	import { siteSchema } from '$lib/format/seo';
-	import { parseTitleParam } from '$lib/domain/calendar';
-	import { MediaSearch } from '$lib/stores/search.svelte';
-	import { homeReset } from '$lib/stores/home-reset.svelte';
-	import { JUST_SAVED, optimistic, pendingSaves } from '$lib/stores/pending-saves.svelte';
-	import { TrendingFeed } from '$lib/stores/trending.svelte';
-	import { toasts } from '$lib/stores/toasts.svelte';
-	import { withToast } from '$lib/forms/feedback';
-	import { dedupeByKey, mediaKey } from '$lib/domain/media';
-	import type { MediaResult, MediaType, PersonResult } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import SearchBar from '#lib/components/ui/SearchBar.svelte';
+	import EmptyState from '#lib/components/ui/EmptyState.svelte';
+	import PosterGrid from '#lib/components/media/PosterGrid.svelte';
+	import PosterGridSkeleton from '#lib/components/media/PosterGridSkeleton.svelte';
+	import DiscoverCard from '#lib/components/media/DiscoverCard.svelte';
+	import RecommendationRail from '#lib/components/media/RecommendationRail.svelte';
+	import MediaDetailModal from '#lib/components/media/MediaDetailModal.svelte';
+	import PeopleRail from '#lib/components/media/PeopleRail.svelte';
+	import PersonSheet from '#lib/components/media/PersonSheet.svelte';
+	import GoogleButton from '#lib/components/auth/GoogleButton.svelte';
+	import Seo from '#lib/components/Seo.svelte';
+	import { siteSchema } from '#lib/format/seo.js';
+	import { parseTitleParam } from '#lib/domain/calendar.js';
+	import { MediaSearch } from '#lib/stores/search.svelte.js';
+	import { homeReset } from '#lib/stores/home-reset.svelte.js';
+	import { JUST_SAVED, optimistic, pendingSaves } from '#lib/stores/pending-saves.svelte.js';
+	import { TrendingFeed } from '#lib/stores/trending.svelte.js';
+	import { toasts } from '#lib/stores/toasts.svelte.js';
+	import { withToast } from '#lib/forms/feedback.js';
+	import { dedupeByKey, mediaKey } from '#lib/domain/media.js';
+	import type { MediaResult, MediaType, PersonResult } from '#lib/types.js';
 	import type { PageData } from './$types';
 
 	/**
@@ -146,28 +146,29 @@
 	 * replay them.
 	 *
 	 * `afterNavigate` rather than `$effect`, and the `await` is not decoration.
-	 * `replaceState` throws until SvelteKit's client router has started, and on a
+	 * A shallow `goto` throws until SvelteKit's client router has started, and on a
 	 * first load neither an effect nor this callback is late enough — which was
 	 * already happening to anyone who failed to sign in and landed on
 	 * `?auth=error`: a page error instead of the message, and the parameter left
 	 * in the bar. Acting comes first and tidying up waits, so the slow half
 	 * cannot delay the sheet opening.
 	 *
-	 * Shallow routing does not re-trigger this, so stripping cannot loop.
+	 * Shallow routing re-triggers this hook, so its own pass is skipped — that is
+	 * what keeps stripping from looping.
 	 */
-	afterNavigate(async () => {
+	afterNavigate(async ({ shallow, type }) => {
+		if (shallow && type === 'goto') return;
+
 		const title = parseTitleParam(page.url.searchParams.get('title'));
 		const outcome = page.url.searchParams.get('auth');
 		if (!title && !outcome) return;
-
-		const { pathname } = page.url;
 
 		if (title) openTitle(title);
 		if (outcome === 'error') toasts.add('Could not sign you in. Please try again.', 'error');
 		else if (outcome === 'unavailable') toasts.add('Sign-in is not configured yet.', 'error');
 
 		await tick();
-		replaceState(pathname, page.state);
+		goto(resolve('/'), { shallow: true, replace: true, state: page.state });
 	});
 
 	/**
@@ -373,7 +374,7 @@
 	{:else if signedIn}
 		<div class="mt-10 flex justify-center">
 			<a
-				href={resolve('/watchlist')}
+				href={resolve('watchlist')}
 				class="flex items-center gap-2 rounded-xl bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 hover:bg-surface-hi hover:text-ink"
 			>
 				<Icon name="bookmark" size={16} />

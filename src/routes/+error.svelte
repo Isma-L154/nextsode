@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 
 	const notFound = $derived(page.status === 404);
 	const title = $derived(notFound ? 'Page not found' : 'Something went wrong');
@@ -43,7 +43,7 @@
 			Browse Discover
 		</a>
 		<a
-			href={resolve('/watchlist')}
+			href={resolve('watchlist')}
 			class="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface-hi px-5 text-sm font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 ring-inset hover:bg-line hover:text-ink"
 		>
 			<Icon name="bookmark" size={16} />

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from './Icon.svelte';
-	import type { MediaSearch } from '$lib/stores/search.svelte';
+	import type { MediaSearch } from '#lib/stores/search.svelte.js';
 
 	interface Props {
 		search: MediaSearch;

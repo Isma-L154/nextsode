@@ -10,7 +10,7 @@
  *   upkeep   — the repairs that run while somebody is looking
  *   seasons  — asking TMDB, and what its silence means
  *
- * Re-exported from here so callers keep importing `$lib/server/watchlist` and
+ * Re-exported from here so callers keep importing `#lib/server/watchlist/index.js` and
  * never need to know which of those a name came from.
  */
 export { loadWatchlist, countToWatch, findSavedEntry, type WatchlistRow } from './queries';

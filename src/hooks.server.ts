@@ -1,11 +1,11 @@
-import type { Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
+import { sequence, type Handle } from '@sveltejs/kit/hooks';
+
 import {
 	SESSION_COOKIE,
 	deleteSessionCookie,
 	setSessionCookie,
 	validateSession
-} from '$lib/server/auth';
+} from '#lib/server/auth.js';
 
 /**
  * The host this site answers on. Everything else is history or a preview.

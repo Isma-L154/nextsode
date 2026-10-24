@@ -1,8 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
-import { getDetails } from '$lib/server/tmdb';
-import { enforceRateLimit } from '$lib/server/rate-limit';
-import { findSavedEntry, watchlistActions } from '$lib/server/watchlist';
-import { parseTitleSlug, titleSlug } from '$lib/format/title-url';
+import { getDetails } from '#lib/server/tmdb/index.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { findSavedEntry, watchlistActions } from '#lib/server/watchlist/index.js';
+import { parseTitleSlug, titleSlug } from '#lib/format/title-url.js';
 import type { Actions, PageServerLoad } from './$types';
 
 /**

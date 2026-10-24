@@ -49,12 +49,6 @@ export default defineConfig({
 					// leaves by redirect, which this does not govern.
 					'form-action': ['self']
 				}
-			},
-
-			typescript: {
-				config: (config) => {
-					config.include.push('../drizzle.config.ts');
-				}
 			}
 		})
 	],

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import type { SessionUser } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import type { SessionUser } from '#lib/types.js';
 
 	interface Props {
 		user: SessionUser;

@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { SESSION_COOKIE, deleteSessionCookie, invalidateSession } from '$lib/server/auth';
+import { SESSION_COOKIE, deleteSessionCookie, invalidateSession } from '#lib/server/auth.js';
 import type { RequestHandler } from './$types';
 
 /**

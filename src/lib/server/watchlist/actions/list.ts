@@ -8,14 +8,14 @@ import {
 	deriveWatched,
 	normalizeAiredSeasons,
 	normalizeTotalSeasons
-} from '$lib/domain/progress';
-import { resolveEpisodeTarget, seasonBoundary } from '$lib/domain/episodes';
-import { canMarkWatched } from '$lib/domain/release';
+} from '#lib/domain/progress.js';
+import { resolveEpisodeTarget, seasonBoundary } from '#lib/domain/episodes.js';
+import { canMarkWatched } from '#lib/domain/release.js';
 import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from '../seasons';
 import { watchedStamp } from '../stamp';
 import { UNAUTHENTICATED } from './shared';
 import { ownedRow } from '../owned';
-import type { MediaType } from '$lib/types';
+import type { MediaType } from '#lib/types.js';
 
 /**
  * The titles themselves: saving one, dropping one, and moving through it.

@@ -1,6 +1,6 @@
 import { normalize, tmdbFetch, type TmdbRawResult } from './client';
-import { PERSON_CREDITS_SIZE, rankCredits, type CreditCandidate } from '$lib/domain/filmography';
-import type { MediaType, PersonCredit, PersonFilmography } from '$lib/types';
+import { PERSON_CREDITS_SIZE, rankCredits, type CreditCandidate } from '#lib/domain/filmography.js';
+import type { MediaType, PersonCredit, PersonFilmography } from '#lib/types.js';
 
 /** One person's record, and their whole career in a single response. */
 

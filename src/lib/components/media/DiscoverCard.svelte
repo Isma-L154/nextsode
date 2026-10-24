@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { resolve } from '$app/paths';
-	import type { SubmitFunction } from '@sveltejs/kit';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import MediaCard from './MediaCard.svelte';
-	import { hasStarted, progressNote } from '$lib/domain/episodes';
-	import type { MediaResult, SavedEntry } from '$lib/types';
+	import { hasStarted, progressNote } from '#lib/domain/episodes.js';
+	import type { MediaResult, SavedEntry } from '#lib/types.js';
 
 	/**
 	 * A discoverable title (trending or search result) with its save control.
@@ -54,7 +53,7 @@
 	{#snippet actions()}
 		{#if !signedIn}
 			<a
-				href={resolve('/auth/google')}
+				href={resolve('auth/google')}
 				data-sveltekit-reload
 				class="flex min-h-11 w-full items-center justify-center rounded-xl bg-surface-hi text-xs font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 ring-inset hover:bg-line hover:text-ink"
 			>

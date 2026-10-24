@@ -1,4 +1,4 @@
-import type { PersonFilmography } from '$lib/types';
+import type { PersonFilmography } from '#lib/types.js';
 
 /**
  * One cast member's filmography, and the three states fetching it can be in.

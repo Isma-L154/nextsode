@@ -1,7 +1,7 @@
 import { fail, type Actions } from '@sveltejs/kit';
 import { issueCalendarToken, revokeCalendarToken } from '../../calendar';
 import { issueShareToken, revokeShareToken, setShareScope } from '../../share';
-import { scopeFromChoices } from '$lib/domain/share';
+import { scopeFromChoices } from '#lib/domain/share.js';
 import { UNAUTHENTICATED } from './shared';
 
 /**

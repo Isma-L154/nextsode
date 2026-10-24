@@ -1,7 +1,7 @@
+import type { ActionResult } from '$app/forms';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ActionResult } from '@sveltejs/kit';
 import { absorb, withToast } from './feedback';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { toasts } from '#lib/stores/toasts.svelte.js';
 
 beforeEach(() => {
 	toasts.items.length = 0;
@@ -12,7 +12,12 @@ const messages = () => toasts.items.map((toast) => `${toast.type}: ${toast.messa
 describe('absorb', () => {
 	it('takes the fresh data and the payload when the action worked', async () => {
 		const update = vi.fn(async () => {});
-		const result: ActionResult = { type: 'success', status: 200, data: { added: true } };
+		const result: ActionResult = {
+			type: 'success',
+			status: 200,
+			data: { added: true },
+			location: '/'
+		};
 
 		expect(await absorb(result, update)).toEqual({ added: true });
 		expect(update).toHaveBeenCalledOnce();
@@ -20,7 +25,7 @@ describe('absorb', () => {
 	});
 
 	it('answers an empty payload for an action that returns nothing', async () => {
-		const result: ActionResult = { type: 'success', status: 200, data: undefined };
+		const result: ActionResult = { type: 'success', status: 200, data: undefined, location: '/' };
 
 		// `{}` rather than `null`: it succeeded, and a caller reading fields off it
 		// should get "nothing there", not "it failed".
@@ -29,7 +34,12 @@ describe('absorb', () => {
 
 	it('refreshes and complains when the server declines on purpose', async () => {
 		const update = vi.fn(async () => {});
-		const result: ActionResult = { type: 'failure', status: 400, data: { message: 'nope' } };
+		const result: ActionResult = {
+			type: 'failure',
+			status: 400,
+			data: { message: 'nope' },
+			location: '/'
+		};
 
 		expect(await absorb(result, update)).toBeNull();
 		// The connection worked, so whatever else changed while we asked is worth
@@ -40,7 +50,7 @@ describe('absorb', () => {
 
 	it('does not refresh when there was no answer at all', async () => {
 		const update = vi.fn(async () => {});
-		const result: ActionResult = { type: 'error', error: new Error('offline') };
+		const result: ActionResult = { type: 'error', error: { status: 500, message: 'offline' } };
 
 		expect(await absorb(result, update)).toBeNull();
 		// `update` would hand this to `applyAction`, which replaces the page with
@@ -72,22 +82,26 @@ describe('withToast', () => {
 	};
 
 	it('announces the message the caller wrote, only on success', async () => {
-		await run({ type: 'success', status: 200, data: undefined });
+		await run({ type: 'success', status: 200, data: undefined, location: '/' });
 		expect(messages()).toEqual(['success: Added “Solaris”']);
 	});
 
 	it('carries the caller’s tone through', async () => {
-		await run({ type: 'success', status: 200, data: undefined }, 'Removed “Solaris”', 'info');
+		await run(
+			{ type: 'success', status: 200, data: undefined, location: '/' },
+			'Removed “Solaris”',
+			'info'
+		);
 		expect(messages()).toEqual(['info: Removed “Solaris”']);
 	});
 
 	it('does not claim success when the action failed', async () => {
-		await run({ type: 'failure', status: 400, data: undefined });
+		await run({ type: 'failure', status: 400, data: undefined, location: '/' });
 		expect(messages()).toEqual(['error: Something went wrong']);
 	});
 
 	it('does not claim success when the request never landed', async () => {
-		await run({ type: 'error', error: new Error('offline') });
+		await run({ type: 'error', error: { status: 500, message: 'offline' } });
 		expect(messages()).toEqual(['error: Something went wrong']);
 	});
 });

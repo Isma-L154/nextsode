@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
  *
  * Creating a link needs a session, which needs a live Google round-trip, so the
  * panel that mints one is covered by the unit tests over `watchlistActions` and
- * `$lib/server/share`. What only a browser can answer is what a stranger meets
+ * `#lib/server/share.js`. What only a browser can answer is what a stranger meets
  * at the other end of a URL, which is what these check.
  */
 

@@ -4,7 +4,7 @@
  * It was one 612-line module covering search, details, seasons, trending,
  * recommendations and people — six endpoint families whose only genuinely
  * shared parts are the fetch and two raw response shapes, now in `client`.
- * Re-exported from here so every existing `$lib/server/tmdb` import is
+ * Re-exported from here so every existing `#lib/server/tmdb/index.js` import is
  * untouched by the split.
  */
 export { searchMulti, type SearchResults } from './search';

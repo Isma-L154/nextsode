@@ -1,5 +1,5 @@
-import { isGoogleAuthConfigured } from '$lib/server/oauth';
-import { countToWatch } from '$lib/server/watchlist';
+import { isGoogleAuthConfigured } from '#lib/server/oauth.js';
+import { countToWatch } from '#lib/server/watchlist/index.js';
 import type { LayoutServerLoad } from './$types';
 
 /**

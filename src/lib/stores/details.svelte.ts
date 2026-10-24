@@ -1,5 +1,5 @@
-import { detailsUrl, type DetailsQuery } from '$lib/format/details-url';
-import type { MediaDetails } from '$lib/types';
+import { detailsUrl, type DetailsQuery } from '#lib/format/details-url.js';
+import type { MediaDetails } from '#lib/types.js';
 
 /**
  * One title's details, and the three states fetching them can be in.

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { getDb } from './db';
 import { user, watchlistItem } from './db/schema';
-import type { CalendarEntry } from '$lib/domain/calendar';
+import type { CalendarEntry } from '#lib/domain/calendar.js';
 
 /**
  * The calendar feed's server side: minting the token that reads it, and the one

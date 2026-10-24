@@ -1,6 +1,6 @@
 /**
  * Shared, client-safe types. These contain no secrets and can be imported by
- * both server and browser code (unlike anything under `$lib/server`).
+ * both server and browser code (unlike anything under `#lib/server`).
  */
 
 export type MediaType = 'movie' | 'tv';

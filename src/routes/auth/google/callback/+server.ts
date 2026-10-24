@@ -1,15 +1,15 @@
 import { redirect } from '@sveltejs/kit';
 import { eq, ne, sql } from 'drizzle-orm';
-import { createSession, generateSessionToken, setSessionCookie } from '$lib/server/auth';
-import { getDb } from '$lib/server/db';
-import { user, watchlistItem } from '$lib/server/db/schema';
+import { createSession, generateSessionToken, setSessionCookie } from '#lib/server/auth.js';
+import { getDb } from '#lib/server/db/index.js';
+import { user, watchlistItem } from '#lib/server/db/schema.js';
 import {
 	STATE_COOKIE,
 	VERIFIER_COOKIE,
 	createGoogleClient,
 	fetchGoogleProfile,
 	type GoogleProfile
-} from '$lib/server/oauth';
+} from '#lib/server/oauth.js';
 import type { RequestHandler } from './$types';
 
 /**

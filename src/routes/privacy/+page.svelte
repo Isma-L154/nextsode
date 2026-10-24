@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import Seo from '$lib/components/Seo.svelte';
-	import { pageSchema } from '$lib/format/seo';
-	import Prose from '$lib/components/ui/Prose.svelte';
-	import { CONTACT_EMAIL, CONTACT_MAILTO } from '$lib/contact';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import Seo from '#lib/components/Seo.svelte';
+	import { pageSchema } from '#lib/format/seo.js';
+	import Prose from '#lib/components/ui/Prose.svelte';
+	import { CONTACT_EMAIL, CONTACT_MAILTO } from '#lib/contact.js';
 
 	const signedIn = $derived(Boolean(page.data.user));
 

@@ -1,5 +1,5 @@
-import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
-import { toasts } from '$lib/stores/toasts.svelte';
+import type { ActionResult, SubmitFunction } from '$app/forms';
+import { toasts } from '#lib/stores/toasts.svelte.js';
 
 /**
  * What every enhanced form on this site does with an action's answer: take the

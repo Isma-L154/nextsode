@@ -1,3 +1,4 @@
+import { env } from 'cloudflare:workers';
 import { error, type RequestEvent } from '@sveltejs/kit';
 
 /**
@@ -44,7 +45,7 @@ function visitorKey(event: RequestEvent): string | null {
  * @throws a 429 when the caller is over the limit.
  */
 export async function enforceRateLimit(event: RequestEvent): Promise<void> {
-	const limiter = event.platform?.env?.API_RATE_LIMIT;
+	const limiter = env.API_RATE_LIMIT;
 	const key = visitorKey(event);
 	if (!limiter || !key) return;
 

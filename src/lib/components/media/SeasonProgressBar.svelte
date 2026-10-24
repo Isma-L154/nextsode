@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SeasonProgress } from '$lib/domain/progress';
+	import type { SeasonProgress } from '#lib/domain/progress.js';
 
 	/**
 	 * Season progress as a segmented bar — one segment per season.

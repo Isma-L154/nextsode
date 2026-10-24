@@ -1,6 +1,6 @@
-import { error, json } from '@sveltejs/kit';
-import { getTrending } from '$lib/server/tmdb';
-import { enforceRateLimit } from '$lib/server/rate-limit';
+import { error } from '@sveltejs/kit';
+import { getTrending } from '#lib/server/tmdb/index.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -36,7 +36,7 @@ export const GET: RequestHandler = async (event) => {
 	try {
 		// `getTrending` clamps the upper bound, so a huge page number costs one
 		// request against the last real page rather than an unbounded fetch.
-		return json(await getTrending(page), { headers: { 'cache-control': CACHE_CONTROL } });
+		return Response.json(await getTrending(page), { headers: { 'cache-control': CACHE_CONTROL } });
 	} catch (err) {
 		console.error('TMDB trending failed:', err);
 		error(502, 'Failed to load more titles. Please try again.');

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { loadSharedList } from '$lib/server/share';
+import { loadSharedList } from '#lib/server/share.js';
 import type { PageServerLoad } from './$types';
 
 /**

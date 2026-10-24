@@ -1,11 +1,11 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import ModalSheet from '$lib/components/ui/ModalSheet.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import ModalSheet from '#lib/components/ui/ModalSheet.svelte';
 	import PosterGrid from './PosterGrid.svelte';
 	import MediaCard from './MediaCard.svelte';
-	import { profileUrl, releaseYear } from '$lib/format/tmdb-image';
-	import { PersonRequest } from '$lib/stores/person.svelte';
-	import type { MediaResult, PersonResult } from '$lib/types';
+	import { profileUrl, releaseYear } from '#lib/format/tmdb-image.js';
+	import { PersonRequest } from '#lib/stores/person.svelte.js';
+	import type { MediaResult, PersonResult } from '#lib/types.js';
 
 	/**
 	 * One person's work, opened from a name search.

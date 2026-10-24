@@ -1,5 +1,5 @@
 import { normalize, tmdbFetch, type TmdbPaginatedResponse, type TmdbRawResult } from './client';
-import type { MediaResult, MediaType } from '$lib/types';
+import type { MediaResult, MediaType } from '#lib/types.js';
 
 /** This week's trending titles, paged. */
 

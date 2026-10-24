@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import ScrollRail from '#lib/components/ui/ScrollRail.svelte';
 	import FilmographyPanel from './FilmographyPanel.svelte';
-	import { profileUrl } from '$lib/format/tmdb-image';
-	import type { CastMember, MediaResult } from '$lib/types';
+	import { profileUrl } from '#lib/format/tmdb-image.js';
+	import type { CastMember, MediaResult } from '#lib/types.js';
 
 	/**
 	 * Faces, for the "where do I know them from" question a synopsis never

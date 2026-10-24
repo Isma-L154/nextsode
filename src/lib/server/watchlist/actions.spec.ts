@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { createTestDatabase, seedUser, type TestDatabase } from '../test-db';
 import { user, watchlistItem } from '../db/schema';
-import type { MediaDetails } from '$lib/types';
+import type { MediaDetails } from '#lib/types.js';
 
 /**
  * The form actions, against a real database.

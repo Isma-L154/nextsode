@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { posterUrl, releaseYear } from '$lib/format/tmdb-image';
-	import { getReleaseInfo } from '$lib/domain/release';
-	import type { MediaType } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { posterUrl, releaseYear } from '#lib/format/tmdb-image.js';
+	import { getReleaseInfo } from '#lib/domain/release.js';
+	import type { MediaType } from '#lib/types.js';
 
 	/**
 	 * The poster tile every grid is built from.

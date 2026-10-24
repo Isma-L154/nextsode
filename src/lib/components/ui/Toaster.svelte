@@ -2,7 +2,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 	import Icon, { type IconName } from './Icon.svelte';
-	import { toasts, type ToastType } from '$lib/stores/toasts.svelte';
+	import { toasts, type ToastType } from '#lib/stores/toasts.svelte.js';
 
 	const styles: Record<ToastType, string> = {
 		success: 'bg-mint text-canvas',

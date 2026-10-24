@@ -3,7 +3,7 @@ import { and, eq, isNotNull, lt } from 'drizzle-orm';
 import { getDb } from '../../db';
 import { user, watchlistItem } from '../../db/schema';
 import { clip } from '../../form';
-import { normalizeDeletionWindow } from '$lib/domain/deletion';
+import { normalizeDeletionWindow } from '#lib/domain/deletion.js';
 import { UNAUTHENTICATED } from './shared';
 import { ownedRow } from '../owned';
 

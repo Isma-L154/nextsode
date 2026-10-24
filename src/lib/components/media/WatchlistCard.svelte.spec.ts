@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import WatchlistCard from './WatchlistCard.svelte';
-import type { SavedTitle } from '$lib/domain/watchlist';
+import type { SavedTitle } from '#lib/domain/watchlist.js';
 
 /**
  * Which control a saved title gets, and whether what replaces it fits.

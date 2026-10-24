@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { formatRuntime, posterUrl, releaseYear } from '$lib/format/tmdb-image';
-	import type { MediaDetails } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { formatRuntime, posterUrl, releaseYear } from '#lib/format/tmdb-image.js';
+	import type { MediaDetails } from '#lib/types.js';
 
 	/**
 	 * Poster, title and the one-line summary of what this is.

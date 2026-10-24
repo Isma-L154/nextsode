@@ -1,4 +1,4 @@
-import type { MediaResult } from '$lib/types';
+import type { MediaResult } from '#lib/types.js';
 
 /**
  * Incremental paging over the trending list.

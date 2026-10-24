@@ -1,18 +1,17 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { SubmitFunction } from '@sveltejs/kit';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import { enhance, type SubmitFunction } from '$app/forms';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import MediaCard from './MediaCard.svelte';
 	import SeasonTracker from './SeasonTracker.svelte';
-	import { getSeasonProgress } from '$lib/domain/progress';
-	import { progressNote } from '$lib/domain/episodes';
-	import { canMarkWatched, getReleaseInfo, pendingReleaseLabel } from '$lib/domain/release';
+	import { getSeasonProgress } from '#lib/domain/progress.js';
+	import { progressNote } from '#lib/domain/episodes.js';
+	import { canMarkWatched, getReleaseInfo, pendingReleaseLabel } from '#lib/domain/release.js';
 	import {
 		daysUntilDeletion,
 		shouldWarnAboutDeletion,
 		type DeletionWindow
-	} from '$lib/domain/deletion';
-	import type { SavedTitle } from '$lib/domain/watchlist';
+	} from '#lib/domain/deletion.js';
+	import type { SavedTitle } from '#lib/domain/watchlist.js';
 
 	/**
 	 * A saved title with its controls.
@@ -127,6 +126,7 @@
 			     next season, which is the whole point of it. -->
 			<div class="space-y-1.5">
 				<SeasonTracker itemId={item.id} title={item.title} {progress} onSubmit={onSetSeasons} />
+
 				<form method="POST" action="?/remove" use:enhance={onRemove}>
 					<input type="hidden" name="id" value={item.id} />
 					<button

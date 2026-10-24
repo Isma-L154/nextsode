@@ -1,6 +1,6 @@
-import { error, json } from '@sveltejs/kit';
-import { searchMulti } from '$lib/server/tmdb';
-import { enforceRateLimit } from '$lib/server/rate-limit';
+import { error } from '@sveltejs/kit';
+import { searchMulti } from '#lib/server/tmdb/index.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -38,11 +38,14 @@ export const GET: RequestHandler = async (event) => {
 	const { url } = event;
 
 	const query = (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY_LENGTH);
-	if (!query) return json({ results: [], people: [] });
+	if (!query) return Response.json({ results: [], people: [] });
 
 	try {
 		const { titles, people } = await searchMulti(query);
-		return json({ results: titles, people }, { headers: { 'cache-control': CACHE_CONTROL } });
+		return Response.json(
+			{ results: titles, people },
+			{ headers: { 'cache-control': CACHE_CONTROL } }
+		);
 	} catch (err) {
 		console.error('TMDB search failed:', err);
 		error(502, 'Failed to reach the movie database. Please try again.');
