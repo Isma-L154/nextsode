@@ -70,7 +70,7 @@ jobs:
         run: npm run build
 
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           # No `command:` — the action's default `deploy` picks up wrangler.jsonc.
