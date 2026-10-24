@@ -1,20 +1,15 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
+	"extends": "$app/tsconfig",
 	"compilerOptions": {
 		"rewriteRelativeImportExtensions": true,
-		"allowJs": true,
 		// `checkJs` is deliberately off. Every source file in this project is
 		// TypeScript or Svelte, so it type-checked nothing of ours — but it did
 		// pull the adapter's generated bundle into `svelte-check` as soon as a
 		// build had run locally, burying real errors under hundreds of fake ones.
 		"checkJs": false,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"moduleResolution": "bundler",
-		"types": ["./worker-configuration.d.ts"]
-	}
+		"types": ["$app/types", "./worker-configuration.d.ts"]
+	},
+	"include": ["src", "vite.config.ts", "drizzle.config.ts", "playwright.config.ts"]
 }

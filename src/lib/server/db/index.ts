@@ -1,7 +1,7 @@
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import * as schema from './schema';
-import { env } from '$env/dynamic/private';
+import { DATABASE_URL, DATABASE_AUTH_TOKEN } from '$app/env/private';
 
 /**
  * The Drizzle client is created lazily on first use rather than at module load.
@@ -16,18 +16,18 @@ let database: LibSQLDatabase<typeof schema> | undefined;
 export function getDb(): LibSQLDatabase<typeof schema> {
 	if (database) return database;
 
-	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+	if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
 	// A remote libSQL/Turso database requires an auth token, while a local SQLite
 	// file used during development does not.
-	const isRemote = env.DATABASE_URL.startsWith('libsql://');
-	if (isRemote && !env.DATABASE_AUTH_TOKEN) {
+	const isRemote = DATABASE_URL.startsWith('libsql://');
+	if (isRemote && !DATABASE_AUTH_TOKEN) {
 		throw new Error('DATABASE_AUTH_TOKEN is required for remote libSQL databases');
 	}
 
 	const client = createClient({
-		url: env.DATABASE_URL,
-		authToken: env.DATABASE_AUTH_TOKEN || undefined
+		url: DATABASE_URL,
+		authToken: DATABASE_AUTH_TOKEN || undefined
 	});
 	database = drizzle(client, { schema });
 	return database;

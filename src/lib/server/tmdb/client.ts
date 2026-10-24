@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { TMDB_ACCESS_TOKEN } from '$app/env/private';
 import type { MediaResult, MediaType } from '$lib/types';
 
 /**
@@ -49,7 +49,7 @@ export async function tmdbFetch<T>(
 	params: Record<string, string> = {},
 	cacheSeconds = 0
 ): Promise<T> {
-	const token = env.TMDB_ACCESS_TOKEN;
+	const token = TMDB_ACCESS_TOKEN;
 	if (!token) throw new Error('TMDB_ACCESS_TOKEN is not set');
 
 	const url = new URL(`${TMDB_BASE_URL}${path}`);

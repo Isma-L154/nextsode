@@ -1,5 +1,5 @@
 import { Google } from 'arctic';
-import { env } from '$env/dynamic/private';
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_ORIGIN } from '$app/env/private';
 
 /**
  * Google OAuth 2.0 / OpenID Connect wiring.
@@ -28,7 +28,7 @@ export const HANDSHAKE_TTL_SECONDS = 60 * 10;
 
 /** True when the deployment has Google credentials configured. */
 export function isGoogleAuthConfigured(): boolean {
-	return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+	return Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
 }
 
 /**
@@ -40,13 +40,13 @@ export function isGoogleAuthConfigured(): boolean {
  * header (in which case `url.origin` would be the internal address).
  */
 export function createGoogleClient(requestOrigin: string): Google {
-	const clientId = env.GOOGLE_CLIENT_ID;
-	const clientSecret = env.GOOGLE_CLIENT_SECRET;
+	const clientId = GOOGLE_CLIENT_ID;
+	const clientSecret = GOOGLE_CLIENT_SECRET;
 	if (!clientId || !clientSecret) {
 		throw new Error('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set');
 	}
 
-	const origin = (env.OAUTH_ORIGIN || requestOrigin).replace(/\/$/, '');
+	const origin = (OAUTH_ORIGIN || requestOrigin).replace(/\/$/, '');
 	return new Google(clientId, clientSecret, `${origin}${CALLBACK_PATH}`);
 }
 
