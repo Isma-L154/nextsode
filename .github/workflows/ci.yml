@@ -41,6 +41,12 @@ jobs:
       - name: Unit tests (Vitest)
         run: npm run test:unit -- --run
 
+      # Dependency updates merge on this job alone, and the deploy builds only
+      # after the merge: a vite, SvelteKit or adapter update that breaks the
+      # build has to fail here instead.
+      - name: Build
+        run: npm run build
+
   deploy:
     name: Deploy to Cloudflare
     # Only after the quality gate passes, and never from a pull request — a PR
