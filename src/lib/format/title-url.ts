@@ -1,4 +1,4 @@
-import type { MediaType } from '$lib/types';
+import type { MediaType } from '#lib/types.js';
 
 /**
  * The public address of one title, and how to read it back.

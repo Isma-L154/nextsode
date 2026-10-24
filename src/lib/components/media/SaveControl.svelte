@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import GoogleButton from '$lib/components/auth/GoogleButton.svelte';
-	import { withToast } from '$lib/forms/feedback';
-	import { JUST_SAVED, optimistic, pendingSaves } from '$lib/stores/pending-saves.svelte';
-	import { mediaKey } from '$lib/domain/media';
-	import type { MediaDetails, SavedEntry } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import GoogleButton from '#lib/components/auth/GoogleButton.svelte';
+	import { withToast } from '#lib/forms/feedback.js';
+	import { JUST_SAVED, optimistic, pendingSaves } from '#lib/stores/pending-saves.svelte.js';
+	import { mediaKey } from '#lib/domain/media.js';
+	import type { MediaDetails, SavedEntry } from '#lib/types.js';
 
 	/**
 	 * The one action the sheet exists to offer, in whichever of its three states

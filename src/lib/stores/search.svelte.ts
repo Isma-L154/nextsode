@@ -1,4 +1,4 @@
-import type { MediaResult, PersonResult } from '$lib/types';
+import type { MediaResult, PersonResult } from '#lib/types.js';
 
 /** Wait after the last keystroke before hitting the network. */
 const DEBOUNCE_MS = 350;

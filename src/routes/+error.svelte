@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 
 	const notFound = $derived(page.status === 404);
 	const title = $derived(notFound ? 'Page not found' : 'Something went wrong');

@@ -1,4 +1,4 @@
-import type { Episode, SeasonEpisodes, UpcomingSeason } from '$lib/types';
+import type { Episode, SeasonEpisodes, UpcomingSeason } from '#lib/types.js';
 
 /**
  * Reading TMDB's season and episode data, and deciding what has actually aired.

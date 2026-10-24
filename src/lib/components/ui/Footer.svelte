@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import tmdbLogo from '$lib/assets/tmdb.svg';
-	import { CONTACT_EMAIL, CONTACT_MAILTO } from '$lib/contact';
+	import tmdbLogo from '#lib/assets/tmdb.svg';
+	import { CONTACT_EMAIL, CONTACT_MAILTO } from '#lib/contact.js';
 
 	/**
 	 * Attribution, the way to reach us, and the legal links.

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { toasts } from '$lib/stores/toasts.svelte';
-	import { getReleaseInfo } from '$lib/domain/release';
-	import type { UpcomingSeason } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { toasts } from '#lib/stores/toasts.svelte.js';
+	import { getReleaseInfo } from '#lib/domain/release.js';
+	import type { UpcomingSeason } from '#lib/types.js';
 
 	/**
 	 * Full season picker for the detail sheet.

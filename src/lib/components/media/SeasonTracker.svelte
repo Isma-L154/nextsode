@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import SeasonProgressBar from './SeasonProgressBar.svelte';
-	import type { SeasonProgress } from '$lib/domain/progress';
+	import type { SeasonProgress } from '#lib/domain/progress.js';
 
 	/**
 	 * Season progress control for a saved show.

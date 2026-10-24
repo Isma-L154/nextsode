@@ -1,5 +1,5 @@
-import { getTrending } from '$lib/server/tmdb';
-import { titlePath } from '$lib/format/title-url';
+import { getTrending } from '#lib/server/tmdb/index.js';
+import { titlePath } from '#lib/format/title-url.js';
 import type { RequestHandler } from './$types';
 
 /**

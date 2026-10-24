@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import Seo from '$lib/components/Seo.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import MediaCard from '$lib/components/media/MediaCard.svelte';
-	import PosterGrid from '$lib/components/media/PosterGrid.svelte';
-	import { describeScope } from '$lib/domain/share';
-	import { titlePath } from '$lib/format/title-url';
+	import Seo from '#lib/components/Seo.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import EmptyState from '#lib/components/ui/EmptyState.svelte';
+	import MediaCard from '#lib/components/media/MediaCard.svelte';
+	import PosterGrid from '#lib/components/media/PosterGrid.svelte';
+	import { describeScope } from '#lib/domain/share.js';
+	import { titlePath } from '#lib/format/title-url.js';
 	import type { PageData } from './$types';
 
 	/**

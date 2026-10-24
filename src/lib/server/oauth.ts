@@ -4,7 +4,7 @@ import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_ORIGIN } from '$app/env/p
 /**
  * Google OAuth 2.0 / OpenID Connect wiring.
  *
- * Lives under `$lib/server`, so the client secret can never leak into the
+ * Lives under `#lib/server`, so the client secret can never leak into the
  * browser bundle. `arctic` handles the protocol details (PKCE, token exchange);
  * everything here is configuration and profile mapping.
  */

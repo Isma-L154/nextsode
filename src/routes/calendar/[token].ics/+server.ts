@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { buildCalendar } from '$lib/domain/calendar';
-import { loadCalendarEntries } from '$lib/server/calendar';
+import { buildCalendar } from '#lib/domain/calendar.js';
+import { loadCalendarEntries } from '#lib/server/calendar.js';
 import type { RequestHandler } from './$types';
 
 /**

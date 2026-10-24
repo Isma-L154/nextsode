@@ -1,5 +1,5 @@
 import { getDetails } from '../tmdb';
-import type { MediaType } from '$lib/types';
+import type { MediaType } from '#lib/types.js';
 
 /**
  * Asking TMDB when a title actually comes out, now that the answer matters.

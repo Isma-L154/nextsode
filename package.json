@@ -61,5 +61,8 @@
 		"cookie": "^1.0.2",
 		"devalue": "^5.9.1",
 		"esbuild": "^0.28.1"
+	},
+	"imports": {
+		"#lib/*": "./src/lib/*"
 	}
 }

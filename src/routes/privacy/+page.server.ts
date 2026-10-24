@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { getDb } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
-import { deleteSessionCookie } from '$lib/server/auth';
+import { getDb } from '#lib/server/db/index.js';
+import { user } from '#lib/server/db/schema.js';
+import { deleteSessionCookie } from '#lib/server/auth.js';
 import type { Actions } from './$types';
 
 export const actions = {

@@ -5,7 +5,7 @@ import {
 	type TmdbSeasonDetailRaw,
 	type TmdbSeasonRaw
 } from './seasons';
-import type { MediaDetails, MediaType, WatchOptions, WatchProvider } from '$lib/types';
+import type { MediaDetails, MediaType, WatchOptions, WatchProvider } from '#lib/types.js';
 
 /** Everything known about one title: credits, videos and where to watch it. */
 

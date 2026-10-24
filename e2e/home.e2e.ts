@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
  * Smoke tests driving the real app. They run signed out, which is the only
  * state reachable without completing a live Google OAuth round-trip — so they
  * cover discovery, navigation and the auth gate, while the watchlist logic
- * itself is covered by the unit tests over `$lib`.
+ * itself is covered by the unit tests over `#lib`.
  */
 
 test('shows Discover and switches to results when searching', async ({ page }) => {

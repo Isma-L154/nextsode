@@ -1,17 +1,17 @@
 import { eq } from 'drizzle-orm';
-import { getDb } from '$lib/server/db';
-import { watchlistItem } from '$lib/server/db/schema';
-import { getRecommendations, getTrending } from '$lib/server/tmdb';
-import { watchlistActions } from '$lib/server/watchlist';
-import { mediaKey } from '$lib/domain/media';
+import { getDb } from '#lib/server/db/index.js';
+import { watchlistItem } from '#lib/server/db/schema.js';
+import { getRecommendations, getTrending } from '#lib/server/tmdb/index.js';
+import { watchlistActions } from '#lib/server/watchlist/index.js';
+import { mediaKey } from '#lib/domain/media.js';
 import {
 	buildRails,
 	dayNumber,
 	pickSeeds,
 	type RecommendationRail,
 	type SeedCandidate
-} from '$lib/domain/recommendations';
-import type { MediaResult, SavedEntry } from '$lib/types';
+} from '#lib/domain/recommendations.js';
+import type { MediaResult, SavedEntry } from '#lib/types.js';
 import type { Actions, PageServerLoad } from './$types';
 
 /**

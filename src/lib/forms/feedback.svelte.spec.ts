@@ -1,7 +1,7 @@
 import type { ActionResult } from '$app/forms';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { absorb, withToast } from './feedback';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { toasts } from '#lib/stores/toasts.svelte.js';
 
 beforeEach(() => {
 	toasts.items.length = 0;

@@ -1,6 +1,6 @@
 import { normalize, tmdbFetch, type TmdbPaginatedResponse, type TmdbRawResult } from './client';
-import { PEOPLE_RESULTS_SIZE, rankPeople, type PersonCandidate } from '$lib/domain/filmography';
-import type { MediaResult, MediaType, PersonResult } from '$lib/types';
+import { PEOPLE_RESULTS_SIZE, rankPeople, type PersonCandidate } from '#lib/domain/filmography.js';
+import type { MediaResult, MediaType, PersonResult } from '#lib/types.js';
 
 /** Searching titles and people in one request, and ranking what comes back. */
 

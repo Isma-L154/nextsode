@@ -1,5 +1,5 @@
 import { normalize, tmdbFetch, type TmdbPaginatedResponse } from './client';
-import type { MediaResult, MediaType } from '$lib/types';
+import type { MediaResult, MediaType } from '#lib/types.js';
 
 /** "More like this", for one title. */
 

@@ -1,4 +1,4 @@
-import type { MediaType } from '$lib/types';
+import type { MediaType } from '#lib/types.js';
 
 /** What the detail sheet is asking for. */
 export interface DetailsQuery {

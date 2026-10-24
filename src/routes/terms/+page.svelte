@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import Seo from '$lib/components/Seo.svelte';
-	import { pageSchema } from '$lib/format/seo';
-	import Prose from '$lib/components/ui/Prose.svelte';
-	import { CONTACT_EMAIL, CONTACT_MAILTO } from '$lib/contact';
+	import Seo from '#lib/components/Seo.svelte';
+	import { pageSchema } from '#lib/format/seo.js';
+	import Prose from '#lib/components/ui/Prose.svelte';
+	import { CONTACT_EMAIL, CONTACT_MAILTO } from '#lib/contact.js';
 
 	// Declared once: the meta tags and the structured data have to agree, and
 	// two copies of a sentence are two chances for them to drift apart.

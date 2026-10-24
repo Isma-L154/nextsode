@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { getReleaseInfo, releaseVerb } from '$lib/domain/release';
-	import type { MediaDetails } from '$lib/types';
+	import { getReleaseInfo, releaseVerb } from '#lib/domain/release.js';
+	import type { MediaDetails } from '#lib/types.js';
 
 	/**
 	 * "Not out yet", stated rather than left to be inferred.

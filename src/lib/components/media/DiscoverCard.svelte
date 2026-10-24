@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { resolve } from '$app/paths';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import MediaCard from './MediaCard.svelte';
-	import { hasStarted, progressNote } from '$lib/domain/episodes';
-	import type { MediaResult, SavedEntry } from '$lib/types';
+	import { hasStarted, progressNote } from '#lib/domain/episodes.js';
+	import type { MediaResult, SavedEntry } from '#lib/types.js';
 
 	/**
 	 * A discoverable title (trending or search result) with its save control.

@@ -1,10 +1,10 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db';
 import { watchlistItem } from '../db/schema';
-import { clampSeasons, deriveWatched } from '$lib/domain/progress';
-import { carryBookmark } from '$lib/domain/episodes';
-import { isDueForDeletion, type DeletionWindow } from '$lib/domain/deletion';
-import { isUpcoming } from '$lib/domain/release';
+import { clampSeasons, deriveWatched } from '#lib/domain/progress.js';
+import { carryBookmark } from '#lib/domain/episodes.js';
+import { isDueForDeletion, type DeletionWindow } from '#lib/domain/deletion.js';
+import { isUpcoming } from '#lib/domain/release.js';
 import { resolveSeasonInfo } from './seasons';
 import { resolveReleaseDate } from './releases';
 import { watchedStamp } from './stamp';

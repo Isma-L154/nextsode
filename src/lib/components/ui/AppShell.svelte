@@ -3,11 +3,11 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import Icon, { type IconName } from './Icon.svelte';
-	import AccountChip from '$lib/components/auth/AccountChip.svelte';
+	import AccountChip from '#lib/components/auth/AccountChip.svelte';
 	import Footer from './Footer.svelte';
-	import { homeReset } from '$lib/stores/home-reset.svelte';
-	import GoogleButton from '$lib/components/auth/GoogleButton.svelte';
-	import type { SessionUser } from '$lib/types';
+	import { homeReset } from '#lib/stores/home-reset.svelte.js';
+	import GoogleButton from '#lib/components/auth/GoogleButton.svelte';
+	import type { SessionUser } from '#lib/types.js';
 
 	/**
 	 * The application frame: brand, navigation and account, wrapped around the

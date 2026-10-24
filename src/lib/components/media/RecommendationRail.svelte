@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { SubmitFunction } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import ScrollRail from '#lib/components/ui/ScrollRail.svelte';
 	import DiscoverCard from './DiscoverCard.svelte';
-	import { mediaKey } from '$lib/domain/media';
-	import type { RecommendationRail } from '$lib/domain/recommendations';
-	import type { MediaResult, SavedEntry } from '$lib/types';
+	import { mediaKey } from '#lib/domain/media.js';
+	import type { RecommendationRail } from '#lib/domain/recommendations.js';
+	import type { MediaResult, SavedEntry } from '#lib/types.js';
 
 	/**
 	 * One row of suggestions, explained by the title it came from.

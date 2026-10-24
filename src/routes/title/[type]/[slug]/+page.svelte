@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import Seo from '$lib/components/Seo.svelte';
-	import TitleDetail from '$lib/components/media/TitleDetail.svelte';
-	import SaveControl from '$lib/components/media/SaveControl.svelte';
-	import ShareButton from '$lib/components/media/ShareButton.svelte';
-	import { titleSchema } from '$lib/format/seo';
-	import { titlePath } from '$lib/format/title-url';
-	import { backdropUrl, posterUrl, releaseYear } from '$lib/format/tmdb-image';
+	import Seo from '#lib/components/Seo.svelte';
+	import TitleDetail from '#lib/components/media/TitleDetail.svelte';
+	import SaveControl from '#lib/components/media/SaveControl.svelte';
+	import ShareButton from '#lib/components/media/ShareButton.svelte';
+	import { titleSchema } from '#lib/format/seo.js';
+	import { titlePath } from '#lib/format/title-url.js';
+	import { backdropUrl, posterUrl, releaseYear } from '#lib/format/tmdb-image.js';
 	import type { PageData } from './$types';
 
 	/**

@@ -1,6 +1,6 @@
 import { getDetails } from '../tmdb';
-import { normalizeAiredSeasons, normalizeTotalSeasons } from '$lib/domain/progress';
-import type { MediaType } from '$lib/types';
+import { normalizeAiredSeasons, normalizeTotalSeasons } from '#lib/domain/progress.js';
+import type { MediaType } from '#lib/types.js';
 
 /**
  * Asking TMDB about a show's seasons, and deciding what that answer means.

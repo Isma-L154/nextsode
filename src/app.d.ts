@@ -1,6 +1,6 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
-import type { SessionUser } from '$lib/types';
+import type { SessionUser } from '#lib/types.js';
 
 declare global {
 	namespace App {

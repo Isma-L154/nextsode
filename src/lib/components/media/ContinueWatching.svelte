@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import ScrollRail from '#lib/components/ui/ScrollRail.svelte';
 	import SeasonTracker from './SeasonTracker.svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import { getSeasonProgress } from '$lib/domain/progress';
-	import { progressNote } from '$lib/domain/episodes';
-	import { posterUrl } from '$lib/format/tmdb-image';
-	import type { SavedTitle } from '$lib/domain/watchlist';
+	import { getSeasonProgress } from '#lib/domain/progress.js';
+	import { progressNote } from '#lib/domain/episodes.js';
+	import { posterUrl } from '#lib/format/tmdb-image.js';
+	import type { SavedTitle } from '#lib/domain/watchlist.js';
 
 	/**
 	 * "What was I in the middle of?" — the first question anyone opens a watchlist

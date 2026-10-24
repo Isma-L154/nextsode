@@ -5,7 +5,7 @@ import {
 	deleteSessionCookie,
 	setSessionCookie,
 	validateSession
-} from '$lib/server/auth';
+} from '#lib/server/auth.js';
 
 /**
  * The host this site answers on. Everything else is history or a preview.

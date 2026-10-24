@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { detailsUrl } from '$lib/format/details-url';
+import { detailsUrl } from '#lib/format/details-url.js';
 
 /**
  * The URL builder is tested here; the class itself needs `$state`, so its

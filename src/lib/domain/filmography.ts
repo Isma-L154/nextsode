@@ -1,4 +1,4 @@
-import type { MediaType } from '$lib/types';
+import type { MediaType } from '#lib/types.js';
 
 /**
  * Turning a person's full credit list into the handful of titles you would

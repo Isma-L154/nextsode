@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import MediaCard from './MediaCard.svelte';
 	import SeasonTracker from './SeasonTracker.svelte';
-	import { getSeasonProgress } from '$lib/domain/progress';
-	import { progressNote } from '$lib/domain/episodes';
-	import { canMarkWatched, getReleaseInfo, pendingReleaseLabel } from '$lib/domain/release';
+	import { getSeasonProgress } from '#lib/domain/progress.js';
+	import { progressNote } from '#lib/domain/episodes.js';
+	import { canMarkWatched, getReleaseInfo, pendingReleaseLabel } from '#lib/domain/release.js';
 	import {
 		daysUntilDeletion,
 		shouldWarnAboutDeletion,
 		type DeletionWindow
-	} from '$lib/domain/deletion';
-	import type { SavedTitle } from '$lib/domain/watchlist';
+	} from '#lib/domain/deletion.js';
+	import type { SavedTitle } from '#lib/domain/watchlist.js';
 
 	/**
 	 * A saved title with its controls.

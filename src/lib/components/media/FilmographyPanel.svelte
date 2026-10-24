@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { creditKey, FILMOGRAPHY_SIZE } from '$lib/domain/filmography';
-	import { posterUrl, profileUrl, releaseYear } from '$lib/format/tmdb-image';
-	import { PersonRequest } from '$lib/stores/person.svelte';
-	import type { CastMember, MediaResult } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { creditKey, FILMOGRAPHY_SIZE } from '#lib/domain/filmography.js';
+	import { posterUrl, profileUrl, releaseYear } from '#lib/format/tmdb-image.js';
+	import { PersonRequest } from '#lib/stores/person.svelte.js';
+	import type { CastMember, MediaResult } from '#lib/types.js';
 
 	/**
 	 * What else you have seen this actor in, opened from their face in the cast

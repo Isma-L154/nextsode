@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
-import { getDetails } from '$lib/server/tmdb';
-import { enforceRateLimit } from '$lib/server/rate-limit';
+import { getDetails } from '#lib/server/tmdb/index.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
 
 /**

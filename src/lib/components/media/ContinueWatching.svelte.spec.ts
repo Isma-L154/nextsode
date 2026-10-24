@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ContinueWatching from './ContinueWatching.svelte';
-import type { SavedTitle } from '$lib/domain/watchlist';
+import type { SavedTitle } from '#lib/domain/watchlist.js';
 
 /**
  * Which control the rail hands each show it is given.

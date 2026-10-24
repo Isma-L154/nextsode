@@ -2,7 +2,7 @@
 	import { untrack, type Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import Icon from './Icon.svelte';
-	import { lockScroll } from '$lib/stores/scroll-lock';
+	import { lockScroll } from '#lib/stores/scroll-lock.js';
 
 	/**
 	 * A modal sheet: bottom-anchored on a phone, centred on a pointer device.
@@ -97,7 +97,7 @@
 	$effect(() => {
 		// Shared rather than per-sheet: two sheets can be mounted at once while one
 		// replaces the other, and each answering "what was the overflow before me?"
-		// gets a different, wrong answer. See `$lib/stores/scroll-lock`.
+		// gets a different, wrong answer. See `#lib/stores/scroll-lock.js`.
 		const releaseScroll = lockScroll();
 		const previouslyFocused = document.activeElement as HTMLElement | null;
 

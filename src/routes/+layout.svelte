@@ -1,8 +1,8 @@
 <script lang="ts">
 	import './layout.css';
 	import type { Snippet } from 'svelte';
-	import AppShell from '$lib/components/ui/AppShell.svelte';
-	import Toaster from '$lib/components/ui/Toaster.svelte';
+	import AppShell from '#lib/components/ui/AppShell.svelte';
+	import Toaster from '#lib/components/ui/Toaster.svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();

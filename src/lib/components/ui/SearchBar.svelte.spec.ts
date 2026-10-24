@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import SearchBar from './SearchBar.svelte';
-import { MediaSearch } from '$lib/stores/search.svelte';
+import { MediaSearch } from '#lib/stores/search.svelte.js';
 
 /**
  * What happens to text that was already in the box when this component woke up.

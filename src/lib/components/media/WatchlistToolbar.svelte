@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import type { countByStatus } from '$lib/domain/watchlist';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import type { countByStatus } from '#lib/domain/watchlist.js';
 	import {
 		UPCOMING_FILTERS,
 		UPCOMING_FILTER_LABELS,
 		type countByUpcomingWindow
-	} from '$lib/domain/upcoming';
+	} from '#lib/domain/upcoming.js';
 
 	/**
 	 * Filters for the saved list.

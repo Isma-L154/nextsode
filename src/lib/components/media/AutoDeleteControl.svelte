@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { toasts } from '$lib/stores/toasts.svelte';
-	import { DELETION_WINDOWS, type DeletionWindow } from '$lib/domain/deletion';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { toasts } from '#lib/stores/toasts.svelte.js';
+	import { DELETION_WINDOWS, type DeletionWindow } from '#lib/domain/deletion.js';
 
 	/**
 	 * Chooses how long watched titles stay before they are deleted.

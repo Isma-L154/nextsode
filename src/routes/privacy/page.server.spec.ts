@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
-import { createTestDatabase, seedUser, type TestDatabase } from '$lib/server/test-db';
-import { session, watchlistItem } from '$lib/server/db/schema';
-import * as schema from '$lib/server/db/schema';
+import { createTestDatabase, seedUser, type TestDatabase } from '#lib/server/test-db.js';
+import { session, watchlistItem } from '#lib/server/db/schema.js';
+import * as schema from '#lib/server/db/schema.js';
 
 /**
  * Deleting an account, against a real database.
@@ -15,8 +15,8 @@ import * as schema from '$lib/server/db/schema';
 let harness: TestDatabase;
 const cleared: string[] = [];
 
-vi.mock('$lib/server/db', () => ({ getDb: () => harness.db }));
-vi.mock('$lib/server/auth', () => ({
+vi.mock('#lib/server/db/index.js', () => ({ getDb: () => harness.db }));
+vi.mock('#lib/server/auth.js', () => ({
 	deleteSessionCookie: () => cleared.push('wl_session')
 }));
 

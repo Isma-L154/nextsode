@@ -7,7 +7,7 @@ import {
 	VERIFIER_COOKIE,
 	createGoogleClient,
 	isGoogleAuthConfigured
-} from '$lib/server/oauth';
+} from '#lib/server/oauth.js';
 import type { RequestHandler } from './$types';
 
 /**

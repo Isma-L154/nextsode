@@ -1,15 +1,15 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import ModalSheet from '$lib/components/ui/ModalSheet.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import ModalSheet from '#lib/components/ui/ModalSheet.svelte';
 	import TitleDetail from './TitleDetail.svelte';
 	import SeasonPicker from './SeasonPicker.svelte';
 	import EpisodePicker from './EpisodePicker.svelte';
 	import SaveControl from './SaveControl.svelte';
 	import ShareButton from './ShareButton.svelte';
-	import { getEpisodePosition } from '$lib/domain/episodes';
-	import { titlePath } from '$lib/format/title-url';
-	import { MediaDetailsRequest } from '$lib/stores/details.svelte';
-	import type { MediaResult, MediaType, SavedEntry } from '$lib/types';
+	import { getEpisodePosition } from '#lib/domain/episodes.js';
+	import { titlePath } from '#lib/format/title-url.js';
+	import { MediaDetailsRequest } from '#lib/stores/details.svelte.js';
+	import type { MediaResult, MediaType, SavedEntry } from '#lib/types.js';
 
 	/**
 	 * Everything known about one title, and the things you can do to it.

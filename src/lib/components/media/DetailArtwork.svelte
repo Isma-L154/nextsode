@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { backdropSrcset, backdropUrl } from '$lib/format/tmdb-image';
-	import type { MediaDetails } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { backdropSrcset, backdropUrl } from '#lib/format/tmdb-image.js';
+	import type { MediaDetails } from '#lib/types.js';
 
 	/**
 	 * The top of the detail sheet: artwork, or the trailer once it is asked for.

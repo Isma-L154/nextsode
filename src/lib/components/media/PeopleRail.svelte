@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
-	import { profileUrl } from '$lib/format/tmdb-image';
-	import type { PersonResult } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import ScrollRail from '#lib/components/ui/ScrollRail.svelte';
+	import { profileUrl } from '#lib/format/tmdb-image.js';
+	import type { PersonResult } from '#lib/types.js';
 
 	/**
 	 * The people a search matched, above the titles it matched.

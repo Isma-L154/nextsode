@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { toasts } from '$lib/stores/toasts.svelte';
-	import { formatRuntime } from '$lib/format/tmdb-image';
-	import type { SeasonEpisodes } from '$lib/types';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { toasts } from '#lib/stores/toasts.svelte.js';
+	import { formatRuntime } from '#lib/format/tmdb-image.js';
+	import type { SeasonEpisodes } from '#lib/types.js';
 
 	/**
 	 * The episode list of the season in progress.

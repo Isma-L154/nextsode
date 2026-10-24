@@ -1,11 +1,11 @@
 import { TMDB_ACCESS_TOKEN } from '$app/env/private';
-import type { MediaResult, MediaType } from '$lib/types';
+import type { MediaResult, MediaType } from '#lib/types.js';
 
 /**
  * The one way this codebase talks to TMDB, and the two shapes every endpoint
  * answers in.
  *
- * Server-only: this module lives under `$lib/server`, so SvelteKit guarantees
+ * Server-only: this module lives under `#lib/server`, so SvelteKit guarantees
  * it can never be bundled into client code — the access token stays on the
  * server at all times.
  */

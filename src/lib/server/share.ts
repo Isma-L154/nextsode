@@ -6,7 +6,7 @@ import {
 	ownerFirstName,
 	scopeIncludes,
 	type ShareScope
-} from '$lib/domain/share';
+} from '#lib/domain/share.js';
 
 /**
  * The shared list's server side: minting the token that reads it, and the one

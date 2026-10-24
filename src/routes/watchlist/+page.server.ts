@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { getDb } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { getDb } from '#lib/server/db/index.js';
+import { user } from '#lib/server/db/schema.js';
 import {
 	deleteExpired,
 	loadWatchlist,
@@ -8,9 +8,9 @@ import {
 	refreshSeasonData,
 	watchlistActions,
 	type WatchlistRow
-} from '$lib/server/watchlist';
-import { normalizeDeletionWindow } from '$lib/domain/deletion';
-import { DEFAULT_SHARE_SCOPE, normalizeShareScope } from '$lib/domain/share';
+} from '#lib/server/watchlist/index.js';
+import { normalizeDeletionWindow } from '#lib/domain/deletion.js';
+import { DEFAULT_SHARE_SCOPE, normalizeShareScope } from '#lib/domain/share.js';
 import type { Actions, PageServerLoad } from './$types';
 
 /**

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { Cookies } from '@sveltejs/kit';
 import { getDb } from './db';
 import { session, user } from './db/schema';
-import type { SessionUser } from '$lib/types';
+import type { SessionUser } from '#lib/types.js';
 
 /**
  * Minimal, dependency-free session management.
