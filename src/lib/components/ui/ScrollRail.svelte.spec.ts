@@ -25,8 +25,8 @@ function tiles(count: number, width = 200) {
 }
 
 /** The rail sizes itself from its parent, so the parent is what the test sets. */
-function mount(count: number) {
-	const screen = render(ScrollRail, { label: 'Test rail', children: tiles(count) });
+async function mount(count: number) {
+	const screen = await render(ScrollRail, { label: 'Test rail', children: tiles(count) });
 	const host = screen.container.firstElementChild as HTMLElement;
 	host.style.width = '400px';
 	return {
@@ -42,7 +42,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
 
 describe('ScrollRail', () => {
 	it('shows no arrows when everything already fits', async () => {
-		const { scroller, back, next } = mount(1);
+		const { scroller, back, next } = await mount(1);
 		await settle();
 
 		expect(scroller.scrollWidth).toBeLessThanOrEqual(scroller.clientWidth + 1);
@@ -51,7 +51,7 @@ describe('ScrollRail', () => {
 	});
 
 	it('offers a way forward, and only forward, at the start of an overflowing row', async () => {
-		const { scroller, back, next } = mount(10);
+		const { scroller, back, next } = await mount(10);
 		await settle();
 
 		expect(scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth);
@@ -61,7 +61,7 @@ describe('ScrollRail', () => {
 	});
 
 	it('actually moves the row when the arrow is pressed', async () => {
-		const { scroller, next } = mount(10);
+		const { scroller, next } = await mount(10);
 		await settle();
 
 		await next().click();
@@ -71,7 +71,7 @@ describe('ScrollRail', () => {
 	});
 
 	it('retires the forward arrow at the end and offers the way back', async () => {
-		const { scroller, back, next } = mount(3);
+		const { scroller, back, next } = await mount(3);
 		await settle();
 
 		await next().click();
@@ -83,7 +83,7 @@ describe('ScrollRail', () => {
 	});
 
 	it('returns to the start, and to a row with only a way forward', async () => {
-		const { scroller, back, next } = mount(3);
+		const { scroller, back, next } = await mount(3);
 		await settle();
 
 		await next().click();
@@ -97,7 +97,7 @@ describe('ScrollRail', () => {
 	});
 
 	it('hands keyboard focus to the opposite arrow when the pressed one unmounts', async () => {
-		mount(3);
+		await mount(3);
 		await settle();
 
 		/**
