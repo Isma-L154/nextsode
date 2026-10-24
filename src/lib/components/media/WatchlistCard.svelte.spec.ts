@@ -44,12 +44,12 @@ function item(over: Partial<SavedTitle> = {}): SavedTitle {
 	};
 }
 
-function card(over: Partial<SavedTitle> = {}) {
+async function card(over: Partial<SavedTitle> = {}) {
 	const container = document.createElement('div');
 	container.style.width = `${TILE_WIDTH}px`;
 	document.body.appendChild(container);
 
-	render(WatchlistCard, {
+	await render(WatchlistCard, {
 		props: {
 			item: item(over),
 			onSelect: vi.fn(),
@@ -70,30 +70,30 @@ const toggleForm = (root: HTMLElement) => root.querySelector('form[action*="togg
 const releaseLine = (root: HTMLElement) => root.querySelector('p.text-amber span') as HTMLElement;
 
 describe('WatchlistCard — waiting for a release', () => {
-	it('offers the toggle on a title that is out', () => {
-		const root = card();
+	it('offers the toggle on a title that is out', async () => {
+		const root = await card();
 
 		expect(toggleForm(root)).not.toBeNull();
 		expect(releaseLine(root)).toBeNull();
 	});
 
-	it('replaces the toggle with the release date on a title that is not', () => {
-		const root = card({ releaseDate: '2099-08-14' });
+	it('replaces the toggle with the release date on a title that is not', async () => {
+		const root = await card({ releaseDate: '2099-08-14' });
 
 		expect(toggleForm(root)).toBeNull();
 		expect(releaseLine(root).textContent?.trim()).toBe('Out Aug 14, 2099');
 	});
 
-	it('says what a series is doing, not what a film is', () => {
-		const root = card({ mediaType: 'tv', releaseDate: '2099-08-14' });
+	it('says what a series is doing, not what a film is', async () => {
+		const root = await card({ mediaType: 'tv', releaseDate: '2099-08-14' });
 
 		expect(releaseLine(root).textContent?.trim()).toBe('Premieres Aug 14, 2099');
 	});
 
 	// Not knowing when something came out is not knowing that it has not; see
 	// `canMarkWatched`.
-	it('still offers the toggle when TMDB has no date at all', () => {
-		const root = card({ releaseDate: null });
+	it('still offers the toggle when TMDB has no date at all', async () => {
+		const root = await card({ releaseDate: null });
 
 		expect(toggleForm(root)).not.toBeNull();
 		expect(releaseLine(root)).toBeNull();
@@ -104,22 +104,22 @@ describe('WatchlistCard — waiting for a release', () => {
 	 * whose date TMDB has since moved outwards, must not be left claiming
 	 * something its owner cannot take back.
 	 */
-	it('keeps the toggle on a watched title even once its date is in the future', () => {
-		const root = card({ releaseDate: '2099-08-14', watched: true });
+	it('keeps the toggle on a watched title even once its date is in the future', async () => {
+		const root = await card({ releaseDate: '2099-08-14', watched: true });
 
 		expect(toggleForm(root)).not.toBeNull();
 		expect(releaseLine(root)).toBeNull();
 	});
 
-	it('leaves the remove button alone', () => {
-		const root = card({ releaseDate: '2099-08-14' });
+	it('leaves the remove button alone', async () => {
+		const root = await card({ releaseDate: '2099-08-14' });
 
 		expect(root.querySelector('form[action*="remove"]')).not.toBeNull();
 	});
 
 	// The reason this file measures rather than only reading text.
-	it('shows the longest label it can be given in full, wrapping if it must', () => {
-		const root = card(LONGEST);
+	it('shows the longest label it can be given in full, wrapping if it must', async () => {
+		const root = await card(LONGEST);
 		const line = releaseLine(root);
 		const pill = line.closest('p') as HTMLElement;
 

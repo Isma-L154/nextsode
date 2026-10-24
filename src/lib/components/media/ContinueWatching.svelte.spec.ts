@@ -34,11 +34,11 @@ function item(over: Partial<SavedTitle> = {}): SavedTitle {
 	};
 }
 
-function rail(over: Partial<SavedTitle> = {}) {
+async function rail(over: Partial<SavedTitle> = {}) {
 	const container = document.createElement('div');
 	document.body.appendChild(container);
 
-	render(ContinueWatching, {
+	await render(ContinueWatching, {
 		props: {
 			items: [item(over)],
 			onSelect: vi.fn(),
@@ -58,16 +58,21 @@ const stepper = (root: HTMLElement) => root.querySelector('form[action*="setSeas
 const toggle = (root: HTMLElement) => root.querySelector('form[action*="toggleWatched"]');
 
 describe('ContinueWatching — which control a show gets', () => {
-	it('gives a multi-season show the season stepper', () => {
-		const root = rail({ title: 'Breaking Bad', seasonsSeen: 2, totalSeasons: 5, airedSeasons: 5 });
+	it('gives a multi-season show the season stepper', async () => {
+		const root = await rail({
+			title: 'Breaking Bad',
+			seasonsSeen: 2,
+			totalSeasons: 5,
+			airedSeasons: 5
+		});
 
 		expect(stepper(root)).not.toBeNull();
 		expect(toggle(root)).toBeNull();
 	});
 
 	/** The regression: one aired season, so there is no stepper to draw. */
-	it('gives a single-season show the watched toggle instead', () => {
-		const root = rail();
+	it('gives a single-season show the watched toggle instead', async () => {
+		const root = await rail();
 
 		expect(stepper(root)).toBeNull();
 		expect(toggle(root)).not.toBeNull();
@@ -77,18 +82,23 @@ describe('ContinueWatching — which control a show gets', () => {
 	 * A second season that is only announced does not raise the ceiling, so this
 	 * is the single-season case wearing a larger total.
 	 */
-	it('treats an announced second season as the single-season case', () => {
-		const root = rail({ totalSeasons: 2, nextSeasonNumber: 2, nextSeasonAirDate: '2027-01-15' });
+	it('treats an announced second season as the single-season case', async () => {
+		const root = await rail({
+			totalSeasons: 2,
+			nextSeasonNumber: 2,
+			nextSeasonAirDate: '2027-01-15'
+		});
 
 		expect(stepper(root)).toBeNull();
 		expect(toggle(root)).not.toBeNull();
 	});
 
 	// Whichever control it gets, the rail's answer to "where am I" is the note.
-	it('names the next episode either way', () => {
-		expect(rail().textContent).toContain('Next: S1E4');
+	it('names the next episode either way', async () => {
+		expect((await rail()).textContent).toContain('Next: S1E4');
 		expect(
-			rail({ seasonsSeen: 2, episodesIntoSeason: 0, totalSeasons: 5, airedSeasons: 5 }).textContent
+			(await rail({ seasonsSeen: 2, episodesIntoSeason: 0, totalSeasons: 5, airedSeasons: 5 }))
+				.textContent
 		).toContain('Next: S3E1');
 	});
 });

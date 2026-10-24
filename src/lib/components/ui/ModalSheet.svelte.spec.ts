@@ -17,44 +17,44 @@ const children = createRawSnippet(() => ({
 		`<div><button data-testid="first">First</button><button data-testid="last">Last</button></div>`
 }));
 
-function open(onClose = vi.fn()) {
-	const screen = render(ModalSheet, { label: 'Test sheet', onClose, children });
+async function open(onClose = vi.fn()) {
+	const screen = await render(ModalSheet, { label: 'Test sheet', onClose, children });
 	return { screen, onClose };
 }
 
 describe('ModalSheet', () => {
 	it('names the dialog for assistive tech', async () => {
-		open();
+		await open();
 		await expect.element(page.getByRole('dialog', { name: 'Test sheet' })).toBeInTheDocument();
 	});
 
 	it('closes on Escape', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		await userEvent.keyboard('{Escape}');
 		expect(onClose).toHaveBeenCalled();
 	});
 
 	it('closes from the close button', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		await page.getByRole('button', { name: 'Close' }).click();
 		expect(onClose).toHaveBeenCalled();
 	});
 
 	it('closes when the backdrop is clicked', async () => {
-		const { onClose, screen } = open();
+		const { onClose, screen } = await open();
 		const backdrop = screen.container.querySelector('[role="presentation"]') as HTMLElement;
 		backdrop.click();
 		expect(onClose).toHaveBeenCalled();
 	});
 
 	it('stays open when the sheet itself is clicked', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		await page.getByTestId('first').click();
 		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it('moves focus into the dialog on open', async () => {
-		const { screen } = open();
+		const { screen } = await open();
 		const dialog = screen.container.querySelector('[role="dialog"]');
 		expect(document.activeElement).toBe(dialog);
 	});
@@ -62,10 +62,10 @@ describe('ModalSheet', () => {
 	it('locks the background scroll while open and restores it on close', async () => {
 		document.body.style.overflow = 'scroll';
 
-		const { screen } = open();
+		const { screen } = await open();
 		expect(document.body.style.overflow).toBe('hidden');
 
-		screen.unmount();
+		await screen.unmount();
 		expect(document.body.style.overflow).toBe('scroll');
 
 		document.body.style.overflow = '';
@@ -87,17 +87,17 @@ describe('ModalSheet', () => {
 		opener.focus();
 		expect(document.activeElement === opener).toBe(true);
 
-		const { screen } = open();
+		const { screen } = await open();
 		expect(document.activeElement === opener).toBe(false);
 
-		screen.unmount();
+		await screen.unmount();
 		expect(document.activeElement === opener).toBe(true);
 
 		opener.remove();
 	});
 
 	it('wraps Tab from the last control back to the first', async () => {
-		open();
+		await open();
 		const last = document.querySelector('[data-testid="last"]') as HTMLElement;
 		last.focus();
 
@@ -108,7 +108,7 @@ describe('ModalSheet', () => {
 	});
 
 	it('wraps Shift+Tab from the first control back to the last', async () => {
-		open();
+		await open();
 		const close = document.querySelector('[aria-label="Close"]') as HTMLElement;
 		close.focus();
 
@@ -122,7 +122,7 @@ describe('ModalSheet', () => {
 		outside.textContent = 'Behind the dialog';
 		document.body.appendChild(outside);
 
-		open();
+		await open();
 		const last = document.querySelector('[data-testid="last"]') as HTMLElement;
 		last.focus();
 		await userEvent.keyboard('{Tab}');
@@ -152,13 +152,13 @@ describe('ModalSheet drag-to-dismiss', () => {
 	}
 
 	it('closes when pulled down past the threshold', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		dragBy(220);
 		expect(onClose).toHaveBeenCalled();
 	});
 
 	it('springs back from a short pull instead of closing', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		const dialog = dragBy(40);
 		expect(onClose).not.toHaveBeenCalled();
 		// Back at rest, not left hanging part-way down.
@@ -166,13 +166,13 @@ describe('ModalSheet drag-to-dismiss', () => {
 	});
 
 	it('ignores a mouse drag, which would only break text selection', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		dragBy(220, 'mouse');
 		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it('lets a scrolled sheet keep scrolling rather than dismissing', async () => {
-		const { onClose, screen } = open();
+		const { onClose, screen } = await open();
 		const dialog = screen.container.querySelector('[role="dialog"]') as HTMLElement;
 		// A sheet read part-way down must not close when the reader flicks on.
 		Object.defineProperty(dialog, 'scrollTop', { value: 300, configurable: true });
@@ -182,7 +182,7 @@ describe('ModalSheet drag-to-dismiss', () => {
 	});
 
 	it('does not move the sheet when pulled upward', async () => {
-		const { onClose } = open();
+		const { onClose } = await open();
 		const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
 		const send = (type: string, y: number) =>
 			dialog.dispatchEvent(
@@ -221,44 +221,44 @@ describe('two sheets swapping places', () => {
 	 * `hidden` back with nothing on screen. The page stayed frozen until reload.
 	 */
 	it('leaves the page scrollable after the second sheet closes', async () => {
-		const first = render(ModalSheet, { label: 'Person', onClose: vi.fn(), children });
+		const first = await render(ModalSheet, { label: 'Person', onClose: vi.fn(), children });
 		await tick();
 
-		const second = render(ModalSheet, { label: 'Title', onClose: vi.fn(), children });
+		const second = await render(ModalSheet, { label: 'Title', onClose: vi.fn(), children });
 		await tick();
-		first.unmount();
+		await first.unmount();
 		await tick();
 
 		// While a sheet is still open the page must stay locked.
 		expect(document.body.style.overflow).toBe('hidden');
 
-		second.unmount();
+		await second.unmount();
 		await tick();
 
 		expect(document.body.style.overflow).toBe('');
 	});
 
 	it('stays locked while any sheet is still on screen', async () => {
-		const first = render(ModalSheet, { label: 'Person', onClose: vi.fn(), children });
+		const first = await render(ModalSheet, { label: 'Person', onClose: vi.fn(), children });
 		await tick();
-		const second = render(ModalSheet, { label: 'Title', onClose: vi.fn(), children });
+		const second = await render(ModalSheet, { label: 'Title', onClose: vi.fn(), children });
 		await tick();
 
-		first.unmount();
+		await first.unmount();
 		await tick();
 
 		// The page was unlocked here, with the second sheet open behind it.
 		expect(document.body.style.overflow).toBe('hidden');
 
-		second.unmount();
+		await second.unmount();
 		await tick();
 	});
 
 	it('survives opening and closing several in a row', async () => {
 		for (let i = 0; i < 4; i++) {
-			const sheet = render(ModalSheet, { label: `Sheet ${i}`, onClose: vi.fn(), children });
+			const sheet = await render(ModalSheet, { label: `Sheet ${i}`, onClose: vi.fn(), children });
 			await tick();
-			sheet.unmount();
+			await sheet.unmount();
 			await tick();
 			expect(document.body.style.overflow).toBe('');
 		}
@@ -269,9 +269,9 @@ describe('two sheets swapping places', () => {
 		// would be the same class of bug in the other direction.
 		document.body.style.overflow = 'clip';
 
-		const sheet = render(ModalSheet, { label: 'Sheet', onClose: vi.fn(), children });
+		const sheet = await render(ModalSheet, { label: 'Sheet', onClose: vi.fn(), children });
 		await tick();
-		sheet.unmount();
+		await sheet.unmount();
 		await tick();
 
 		expect(document.body.style.overflow).toBe('clip');

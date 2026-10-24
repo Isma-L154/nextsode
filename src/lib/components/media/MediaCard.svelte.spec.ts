@@ -18,12 +18,12 @@ const RAIL_WIDTH = 152;
 
 const LONG_TITLE = 'The Lord of the Rings: The Fellowship of the Ring';
 
-function card(props: Record<string, unknown> = {}) {
+async function card(props: Record<string, unknown> = {}) {
 	const container = document.createElement('div');
 	container.style.width = `${RAIL_WIDTH}px`;
 	document.body.appendChild(container);
 
-	render(MediaCard, {
+	await render(MediaCard, {
 		props: {
 			title: LONG_TITLE,
 			posterPath: null,
@@ -58,8 +58,8 @@ const metaBox = (root: HTMLElement) =>
 	[...root.querySelectorAll('p')].find((p) => p.textContent?.trim()) as HTMLElement;
 
 describe('MediaCard footer', () => {
-	it('keeps a long title off the line below it', () => {
-		const root = card();
+	it('keeps a long title off the line below it', async () => {
+		const root = await card();
 		const title = titleBox(root).getBoundingClientRect();
 		const meta = metaBox(root).getBoundingClientRect();
 
@@ -69,8 +69,8 @@ describe('MediaCard footer', () => {
 		expect(title.bottom).toBeLessThanOrEqual(meta.top);
 	});
 
-	it('actually clamps, rather than growing to fit', () => {
-		const root = card();
+	it('actually clamps, rather than growing to fit', async () => {
+		const root = await card();
 		const title = titleBox(root);
 		const lineHeight = parseFloat(getComputedStyle(title).lineHeight);
 
@@ -78,32 +78,32 @@ describe('MediaCard footer', () => {
 		expect(title.clientHeight / lineHeight).toBeLessThanOrEqual(2.2);
 	});
 
-	it('clamps nothing when the title already fits', () => {
-		const root = card({ title: 'Up' });
+	it('clamps nothing when the title already fits', async () => {
+		const root = await card({ title: 'Up' });
 		const title = titleBox(root);
 
 		expect(title.scrollHeight).toBe(title.clientHeight);
 	});
 
-	it('leaves the progress note its own line too', () => {
+	it('leaves the progress note its own line too', async () => {
 		// The note is longer than a year and renders in the same slot, so it is
 		// the case most likely to be reached by a title that overflows.
-		const root = card({ note: 'Season 2 · 3 episodes in' });
+		const root = await card({ note: 'Season 2 · 3 episodes in' });
 		const title = titleBox(root).getBoundingClientRect();
 		const meta = metaBox(root).getBoundingClientRect();
 
 		expect(title.bottom).toBeLessThanOrEqual(meta.top);
 	});
 
-	it('gives the title a thumb-sized target even when it is one line', () => {
-		const root = card({ title: 'Up' });
+	it('gives the title a thumb-sized target even when it is one line', async () => {
+		const root = await card({ title: 'Up' });
 		// The padding that makes this reachable is what caused the overlap; the
 		// fix has to keep the target, not trade it away.
 		expect(titleButton(root).getBoundingClientRect().height).toBeGreaterThanOrEqual(40);
 	});
 
-	it('has no title button at all when the card is not selectable', () => {
-		const root = card({ onSelect: undefined });
+	it('has no title button at all when the card is not selectable', async () => {
+		const root = await card({ onSelect: undefined });
 
 		expect(titleBox(root).closest('button')).toBeNull();
 		expect(titleBox(root).tagName).toBe('H3');
