@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { page } from '$app/state';
-	import { afterNavigate, replaceState } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import Icon from '$lib/components/ui/Icon.svelte';
@@ -155,7 +155,9 @@
 	 *
 	 * Shallow routing does not re-trigger this, so stripping cannot loop.
 	 */
-	afterNavigate(async () => {
+	afterNavigate(async ({ shallow, type }) => {
+		if (shallow && type === 'goto') return;
+
 		const title = parseTitleParam(page.url.searchParams.get('title'));
 		const outcome = page.url.searchParams.get('auth');
 		if (!title && !outcome) return;
@@ -167,7 +169,7 @@
 		else if (outcome === 'unavailable') toasts.add('Sign-in is not configured yet.', 'error');
 
 		await tick();
-		replaceState(pathname, page.state);
+		goto(pathname, { shallow: true, replace: true, state: page.state });
 	});
 
 	/**
