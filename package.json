@@ -33,7 +33,7 @@
 		"@fontsource-variable/work-sans": "^5.3.0",
 		"@playwright/test": "^1.64.1",
 		"@sveltejs/adapter-cloudflare": "^7.2.8",
-		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/kit": "^3.1.0",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^24",
