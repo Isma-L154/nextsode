@@ -1,5 +1,5 @@
+import type { ActionResult } from '$app/forms';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ActionResult } from '@sveltejs/kit';
 import { absorb, withToast } from './feedback';
 import { toasts } from '$lib/stores/toasts.svelte';
 

@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import MediaCard from './MediaCard.svelte';
 	import SeasonTracker from './SeasonTracker.svelte';
@@ -127,6 +126,7 @@
 			     next season, which is the whole point of it. -->
 			<div class="space-y-1.5">
 				<SeasonTracker itemId={item.id} title={item.title} {progress} onSubmit={onSetSeasons} />
+
 				<form method="POST" action="?/remove" use:enhance={onRemove}>
 					<input type="hidden" name="id" value={item.id} />
 					<button

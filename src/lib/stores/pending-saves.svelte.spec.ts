@@ -1,5 +1,5 @@
+import type { SubmitFunction } from '$app/forms';
 import { describe, expect, it, vi } from 'vitest';
-import type { SubmitFunction } from '@sveltejs/kit';
 import { JUST_SAVED, optimistic, pendingSaves } from './pending-saves.svelte';
 import type { SavedEntry } from '$lib/types';
 

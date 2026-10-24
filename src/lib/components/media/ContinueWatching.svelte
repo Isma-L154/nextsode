@@ -1,9 +1,8 @@
 <script lang="ts">
-	import type { SubmitFunction } from '@sveltejs/kit';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
 	import SeasonTracker from './SeasonTracker.svelte';
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { getSeasonProgress } from '$lib/domain/progress';
 	import { progressNote } from '$lib/domain/episodes';
 	import { posterUrl } from '$lib/format/tmdb-image';

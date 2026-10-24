@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import { absorb, copyToClipboard } from '$lib/forms/feedback';
 	import { subscribeLinks } from '$lib/domain/calendar';
-	import type { SubmitFunction } from '@sveltejs/kit';
 
 	/**
 	 * Subscribing a calendar app to everything still to come.

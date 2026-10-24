@@ -1,4 +1,4 @@
-import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
+import type { ActionResult, SubmitFunction } from '$app/forms';
 import { toasts } from '$lib/stores/toasts.svelte';
 
 /**

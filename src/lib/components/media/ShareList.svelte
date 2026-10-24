@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { toasts } from '$lib/stores/toasts.svelte';
 	import { absorb, copyToClipboard } from '$lib/forms/feedback';
 	import { scopeFromChoices, type ShareScope } from '$lib/domain/share';
-	import type { SubmitFunction } from '@sveltejs/kit';
 
 	/**
 	 * Publishing this list as a page, and taking it back.

@@ -1,5 +1,5 @@
-import type { Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
+import { sequence, type Handle } from '@sveltejs/kit/hooks';
+
 import {
 	SESSION_COOKIE,
 	deleteSessionCookie,

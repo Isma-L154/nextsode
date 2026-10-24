@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import type { SubmitFunction } from '$app/forms';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import ScrollRail from '$lib/components/ui/ScrollRail.svelte';
 	import DiscoverCard from './DiscoverCard.svelte';

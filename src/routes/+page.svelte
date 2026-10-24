@@ -1,9 +1,9 @@
 <script lang="ts">
+	import type { SubmitFunction } from '$app/forms';
 	import { tick, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import type { SubmitFunction } from '@sveltejs/kit';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import SearchBar from '$lib/components/ui/SearchBar.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';

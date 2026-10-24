@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import SeasonProgressBar from './SeasonProgressBar.svelte';
 	import type { SeasonProgress } from '$lib/domain/progress';
@@ -50,6 +49,7 @@
 <div class="space-y-2">
 	<div class="flex items-center gap-2">
 		<SeasonProgressBar {progress} size={variant === 'rail' ? 'md' : 'sm'} />
+
 		<!-- `progress.label` is the full sentence ("Season 3 of 5"); the visible text
 		     is the compact form, and the title carries the long one for anyone who
 		     needs it. -->

@@ -1,9 +1,9 @@
 <script lang="ts">
+	import type { SubmitFunction } from '$app/forms';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import type { SubmitFunction } from '@sveltejs/kit';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import GoogleButton from '$lib/components/auth/GoogleButton.svelte';
