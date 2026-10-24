@@ -54,7 +54,7 @@
 	{#snippet actions()}
 		{#if !signedIn}
 			<a
-				href={resolve('/auth/google')}
+				href={resolve('auth/google')}
 				data-sveltekit-reload
 				class="flex min-h-11 w-full items-center justify-center rounded-xl bg-surface-hi text-xs font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 ring-inset hover:bg-line hover:text-ink"
 			>

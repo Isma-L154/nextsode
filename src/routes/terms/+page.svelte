@@ -44,7 +44,7 @@
 		<li>One person, one account. Do not create accounts automatically or in bulk.</li>
 		<li>
 			You can delete your account, and everything in it, at any time from the
-			<a href={resolve('/privacy')}>privacy page</a>.
+			<a href={resolve('privacy')}>privacy page</a>.
 		</li>
 	</ul>
 

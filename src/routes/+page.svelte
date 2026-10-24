@@ -373,7 +373,7 @@
 	{:else if signedIn}
 		<div class="mt-10 flex justify-center">
 			<a
-				href={resolve('/watchlist')}
+				href={resolve('watchlist')}
 				class="flex items-center gap-2 rounded-xl bg-surface px-5 py-2.5 text-sm font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 hover:bg-surface-hi hover:text-ink"
 			>
 				<Icon name="bookmark" size={16} />

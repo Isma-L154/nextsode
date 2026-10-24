@@ -53,11 +53,11 @@
 			>
 				{CONTACT_EMAIL}
 			</a>
-			<a href={resolve('/terms')} class="px-2 py-2.5 transition-colors duration-200 hover:text-ink">
+			<a href={resolve('terms')} class="px-2 py-2.5 transition-colors duration-200 hover:text-ink">
 				Terms
 			</a>
 			<a
-				href={resolve('/privacy')}
+				href={resolve('privacy')}
 				class="px-2 py-2.5 transition-colors duration-200 hover:text-ink"
 			>
 				Privacy
