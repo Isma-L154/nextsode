@@ -146,14 +146,15 @@
 	 * replay them.
 	 *
 	 * `afterNavigate` rather than `$effect`, and the `await` is not decoration.
-	 * `replaceState` throws until SvelteKit's client router has started, and on a
+	 * A shallow `goto` throws until SvelteKit's client router has started, and on a
 	 * first load neither an effect nor this callback is late enough — which was
 	 * already happening to anyone who failed to sign in and landed on
 	 * `?auth=error`: a page error instead of the message, and the parameter left
 	 * in the bar. Acting comes first and tidying up waits, so the slow half
 	 * cannot delay the sheet opening.
 	 *
-	 * Shallow routing does not re-trigger this, so stripping cannot loop.
+	 * Shallow routing re-triggers this hook, so its own pass is skipped — that is
+	 * what keeps stripping from looping.
 	 */
 	afterNavigate(async ({ shallow, type }) => {
 		if (shallow && type === 'goto') return;
@@ -162,14 +163,12 @@
 		const outcome = page.url.searchParams.get('auth');
 		if (!title && !outcome) return;
 
-		const { pathname } = page.url;
-
 		if (title) openTitle(title);
 		if (outcome === 'error') toasts.add('Could not sign you in. Please try again.', 'error');
 		else if (outcome === 'unavailable') toasts.add('Sign-in is not configured yet.', 'error');
 
 		await tick();
-		goto(pathname, { shallow: true, replace: true, state: page.state });
+		goto(resolve('/'), { shallow: true, replace: true, state: page.state });
 	});
 
 	/**

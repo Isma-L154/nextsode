@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { getDetails } from '#lib/server/tmdb/index.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async (event) => {
 
 	try {
 		const details = await getDetails(type, tmdbId, country, season);
-		return json(details, { headers: { 'cache-control': CACHE_CONTROL } });
+		return Response.json(details, { headers: { 'cache-control': CACHE_CONTROL } });
 	} catch (err) {
 		console.error('TMDB details failed:', err);
 		error(502, 'Failed to load title details. Please try again.');

@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { getPersonFilmography } from '#lib/server/tmdb/index.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async (event) => {
 
 	try {
 		const person = await getPersonFilmography(personId);
-		return json(person, { headers: { 'cache-control': CACHE_CONTROL } });
+		return Response.json(person, { headers: { 'cache-control': CACHE_CONTROL } });
 	} catch (err) {
 		console.error('TMDB person failed:', err);
 		error(502, 'Failed to load this person. Please try again.');

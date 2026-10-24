@@ -24,9 +24,9 @@ import type { Actions, PageServerLoad } from './$types';
  * database, so it goes out immediately; the suggestions have to wait for the
  * rows that decide which titles to ask about, and then fan out in parallel.
  */
-export const load: PageServerLoad = async ({ locals, platform }) => {
+export const load: PageServerLoad = async ({ locals, request }) => {
 	const rows = loadSavedRows(locals.user?.id);
-	const today = dayNumber(new Date(), resolveTimeZone(platform));
+	const today = dayNumber(new Date(), resolveTimeZone(request));
 
 	const [saved, trending, recommendations] = await Promise.all([
 		rows.then(buildSavedIndex),
@@ -44,8 +44,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
  * and asks for no permission. Everywhere else — local development, the tests —
  * there is no edge to ask, and UTC is the honest default rather than a guess.
  */
-function resolveTimeZone(platform: App.Platform | undefined): string {
-	const zone = platform?.cf?.timezone;
+function resolveTimeZone(request: Request): string {
+	const zone = request.cf?.timezone;
 	return typeof zone === 'string' && zone.length > 0 ? zone : 'UTC';
 }
 

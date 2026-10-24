@@ -37,5 +37,5 @@ export const GET: RequestHandler = async ({ cookies, locals, url }) => {
 	cookies.set(STATE_COOKIE, state, options);
 	cookies.set(VERIFIER_COOKIE, codeVerifier, options);
 
-	redirect(302, authorizationUrl.toString());
+	redirect(302, authorizationUrl.toString(), { external: ['https://accounts.google.com'] });
 };
