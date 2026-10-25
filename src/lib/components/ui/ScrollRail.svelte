@@ -121,7 +121,9 @@
 	const mask = $derived.by(() => {
 		const start = atStart ? '' : 'transparent, black 3rem';
 		const end = atEnd ? '' : 'black calc(100% - 3rem), transparent';
-		if (!start && !end) return 'none';
+		// No value rather than `none`: the server render then carries no style
+		// attribute for the CSP to block.
+		if (!start && !end) return undefined;
 		return `linear-gradient(to right, ${[start, end].filter(Boolean).join(', ')})`;
 	});
 </script>

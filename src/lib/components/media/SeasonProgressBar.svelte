@@ -26,6 +26,9 @@
 	const done = $derived(progress.state === 'caughtUp' || progress.state === 'complete');
 	const height = $derived(size === 'sm' ? 'h-1' : 'h-1.5');
 	const fill = $derived(done ? 'bg-mint' : 'bg-sky');
+	const fillShape = $derived(done ? 'fill-mint' : 'fill-sky');
+	// Half of `h-1` / `h-1.5`, so the fill ends as round as the track.
+	const radius = $derived(size === 'sm' ? 2 : 3);
 </script>
 
 <!--
@@ -42,11 +45,12 @@
 			></span>
 		{/each}
 	{:else}
-		<span class="{height} w-full overflow-hidden rounded-full bg-line">
-			<span
-				class="block h-full rounded-full {fill} transition-[width] duration-300"
-				style:width="{progress.percent}%"
-			></span>
-		</span>
+		<!--
+			SVG because its `width` is an attribute, not a style: the server renders
+			the fill, and the CSP allows no inline style attributes.
+		-->
+		<svg class="{height} w-full overflow-hidden rounded-full bg-line">
+			<rect class={fillShape} width="{progress.percent}%" height="100%" rx={radius} ry={radius} />
+		</svg>
 	{/if}
 </div>
