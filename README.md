@@ -1,5 +1,13 @@
 <p align="center">
-  <img alt="Nextsode — never lose your place in a series" src="docs/brand/nextsode-banner.png" width="880" />
+  <img alt="Nextsode — never lose your place in a series" src="docs/brand/banner.png" width="880" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/Isma-L154/nextsode/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Isma-L154/nextsode/actions/workflows/ci.yml/badge.svg" /></a>
+  <img alt="SvelteKit 3" src="https://img.shields.io/badge/SvelteKit-3-6366f1?logo=svelte&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-6366f1?logo=typescript&logoColor=white" />
+  <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-6366f1?logo=cloudflare&logoColor=white" />
+  <img alt="License: all rights reserved" src="https://img.shields.io/badge/license-all%20rights%20reserved-6366f1" />
 </p>
 
 <p align="center">
@@ -45,7 +53,7 @@ Two conventions carry most of the codebase: decision logic lives in
 deleting expired titles) runs on page load rather than on a timer, so there is
 no cron job to operate.
 
-**Stack:** SvelteKit 5 · TypeScript · Tailwind 4 · Drizzle + Turso (libSQL) ·
+**Stack:** SvelteKit 3 · Svelte 5 · TypeScript · Tailwind 4 · Drizzle + Turso (libSQL) ·
 Cloudflare Workers
 
 ## Running locally
