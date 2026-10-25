@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
  * repository is a legal problem rather than a design one.
  */
 const TARGETS = [
-	{ variant: 'banner', width: 1280, height: 640, path: 'docs/brand/nextsode-banner.png' },
+	{ variant: 'banner', width: 1280, height: 640, path: 'docs/brand/banner.png' },
 	// The size `SITE_IMAGE` in src/lib/format/seo.ts declares.
 	{ variant: 'card', width: 1200, height: 630, path: 'static/og.png' }
 ];

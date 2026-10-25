@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main, dev]
 
+permissions:
+  contents: read
+
+# A newer push supersedes the run in flight, except on main: cancelling there
+# could stop a deploy halfway through.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   quality:
     name: Lint, type-check & unit tests
