@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { loadSharedList } from '#lib/server/share.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { token } from '#lib/server/validation.js';
 import type { PageServerLoad } from './$types';
 
 /**
@@ -42,7 +44,7 @@ export const load: PageServerLoad = async (event) => {
 		'x-robots-tag': 'noindex, nofollow'
 	});
 
-	const list = await loadSharedList(params.token);
+	const list = v.is(token, params.token) ? await loadSharedList(params.token) : null;
 
 	// The same answer for a revoked token, a mistyped one and one that never
 	// existed. Distinguishing them would confirm that a URL was once real.

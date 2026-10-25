@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { getDetails } from '#lib/server/tmdb/index.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { mediaType, parseFields, positiveInt } from '#lib/server/validation.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -20,12 +22,9 @@ export const GET: RequestHandler = async (event) => {
 	await enforceRateLimit(event);
 	const { params, url } = event;
 
-	const { type, id } = params;
-	const tmdbId = Number(id);
-
-	if ((type !== 'movie' && type !== 'tv') || !Number.isInteger(tmdbId) || tmdbId <= 0) {
-		error(400, 'Invalid media type or id.');
-	}
+	const path = parseFields(pathSchema, Object.entries(params));
+	if (!path) error(400, 'Invalid media type or id.');
+	const { type, id: tmdbId } = path;
 
 	/**
 	 * Country travels in the query string, not in a header.
@@ -35,15 +34,9 @@ export const GET: RequestHandler = async (event) => {
 	 * streaming offers be served to every later visitor who hit the same edge.
 	 * As a query parameter it is part of the key, and each country caches apart.
 	 */
-	const country = normalizeCountry(url.searchParams.get('country'));
-
-	/**
-	 * Which season's episodes to bring along, if any. Also part of the cache key,
-	 * so each season caches separately rather than the first one requested
-	 * standing in for the rest.
-	 */
-	const seasonParam = Number(url.searchParams.get('season'));
-	const season = Number.isInteger(seasonParam) && seasonParam >= 1 ? seasonParam : null;
+	const query = parseFields(querySchema, url.searchParams);
+	if (!query) error(400, 'Invalid country or season.');
+	const { country, season = null } = query;
 
 	try {
 		const details = await getDetails(type, tmdbId, country, season);
@@ -54,8 +47,15 @@ export const GET: RequestHandler = async (event) => {
 	}
 };
 
-/** Two ASCII letters or nothing — this becomes part of a public cache key. */
-function normalizeCountry(value: string | null): string {
-	const country = (value ?? '').toUpperCase();
-	return /^[A-Z]{2}$/.test(country) ? country : 'US';
-}
+const pathSchema = v.strictObject({ type: mediaType, id: positiveInt });
+
+const querySchema = v.strictObject({
+	/** Two capital letters — this becomes part of a public cache key. */
+	country: v.pipe(v.string(), v.regex(/^[A-Z]{2}$/)),
+	/**
+	 * Which season's episodes to bring along, if any. Also part of the cache key,
+	 * so each season caches separately rather than the first one requested
+	 * standing in for the rest.
+	 */
+	season: v.optional(positiveInt)
+});

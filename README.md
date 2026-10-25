@@ -128,7 +128,7 @@ To deploy by hand: `npm run build && npx wrangler deploy`.
 - Secrets live only in `src/lib/server/*`, which SvelteKit guarantees is never bundled for the client.
 - Sign-in uses OAuth 2.0 with PKCE and a `state` parameter; the database stores only a SHA-256 hash of the session token, so a dump cannot be replayed as a session.
 - Every watchlist read _and_ write is scoped by the session's user id — item ids travel through the browser, so knowing one is not enough to touch someone else's list.
-- Input is length- and range-checked before it reaches the database, and season targets are always resolved server-side.
+- Every form field, query string and path parameter goes through a strict schema; anything outside it is refused, never truncated or defaulted. Season targets are always resolved server-side.
 - Personal responses are `private, no-store`; only the public TMDB proxies are edge-cached.
 - Rate limits run inside the Worker: per IP on the public routes and, more tightly, on sign-in; per account on every write.
 

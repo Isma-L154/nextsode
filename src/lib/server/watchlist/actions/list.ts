@@ -1,8 +1,18 @@
 import { fail, type Actions } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../../db';
 import { watchlistItem } from '../../db/schema';
-import { clip, toPositiveInt, toRating } from '../../form';
+import {
+	INVALID_FORM,
+	count,
+	mediaType,
+	optionalText,
+	positiveInt,
+	readForm,
+	requiredText,
+	rowId
+} from '../../validation';
 import {
 	clampSeasons,
 	deriveWatched,
@@ -13,9 +23,8 @@ import { resolveEpisodeTarget, seasonBoundary } from '#lib/domain/episodes.js';
 import { canMarkWatched } from '#lib/domain/release.js';
 import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from '../seasons';
 import { watchedStamp } from '../stamp';
-import { UNAUTHENTICATED } from './shared';
+import { UNAUTHENTICATED, rowForm } from './shared';
 import { ownedRow } from '../owned';
-import type { MediaType } from '#lib/types.js';
 
 /**
  * The titles themselves: saving one, dropping one, and moving through it.
@@ -33,19 +42,42 @@ import type { MediaType } from '#lib/types.js';
  */
 const MAX_ITEMS_PER_USER = 5000;
 
+/**
+ * What a save sends: the card's own snapshot of the title. The caps are
+ * generous multiples of what TMDB returns, and a value past one is refused.
+ * The descriptive fields may be empty or absent; TMDB does not always have them.
+ */
+const addForm = v.strictObject({
+	tmdbId: positiveInt,
+	mediaType,
+	title: requiredText(300),
+	posterPath: v.optional(
+		v.union([v.literal(''), v.pipe(v.string(), v.regex(/^\/[\w.-]{1,100}$/))]),
+		''
+	),
+	releaseDate: v.optional(v.union([v.literal(''), v.pipe(v.string(), v.isoDate())]), ''),
+	overview: v.optional(optionalText(10_000), ''),
+	voteAverage: v.optional(
+		v.union([
+			v.literal(''),
+			v.pipe(v.string(), v.regex(/^\d{1,2}(\.\d{1,10})?$/), v.transform(Number), v.maxValue(10))
+		]),
+		''
+	)
+});
+
+const episodeForm = v.strictObject({ id: rowId, season: positiveInt, episode: count });
+
+const seasonsForm = v.strictObject({ id: rowId, seasons: count });
+
 export const listActions = {
 	/** Save a movie/TV show. Duplicates are silently ignored via the unique index. */
 	add: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const tmdbId = toPositiveInt(form.get('tmdbId'));
-		const mediaType = String(form.get('mediaType') ?? '') as MediaType;
-		const title = clip(form.get('title'), 300);
-
-		if (!tmdbId || (mediaType !== 'movie' && mediaType !== 'tv') || !title) {
-			return fail(400, { message: 'Invalid item data.' });
-		}
+		const input = await readForm(request, addForm);
+		if (!input) return fail(400, { message: 'Invalid item data.' });
+		const { tmdbId, mediaType, title } = input;
 
 		const db = getDb();
 
@@ -74,10 +106,10 @@ export const listActions = {
 				tmdbId,
 				mediaType,
 				title,
-				posterPath: clip(form.get('posterPath'), 200),
-				releaseDate: clip(form.get('releaseDate'), 10),
-				overview: clip(form.get('overview'), 2000),
-				voteAverage: toRating(form.get('voteAverage')),
+				posterPath: input.posterPath || null,
+				releaseDate: input.releaseDate || null,
+				overview: input.overview,
+				voteAverage: input.voteAverage === '' ? null : input.voteAverage,
 				...(await seasonInfoForSave(mediaType, tmdbId))
 			})
 			// Backstop for two concurrent saves of the same title: the unique index
@@ -91,9 +123,9 @@ export const listActions = {
 	remove: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		if (!id) return fail(400, { message: 'Missing id.' });
+		const input = await readForm(request, rowForm);
+		if (!input) return fail(400, INVALID_FORM);
+		const { id } = input;
 
 		await getDb().delete(watchlistItem).where(ownedRow(id, locals.user.id));
 		return { removed: true };
@@ -110,9 +142,9 @@ export const listActions = {
 	toggleWatched: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		if (!id) return fail(400, { message: 'Missing id.' });
+		const input = await readForm(request, rowForm);
+		if (!input) return fail(400, INVALID_FORM);
+		const { id } = input;
 
 		const db = getDb();
 		const [item] = await db
@@ -181,13 +213,9 @@ export const listActions = {
 	setEpisode: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		const season = Number(form.get('season'));
-		const episode = Number(form.get('episode'));
-
-		if (!id) return fail(400, { message: 'Missing id.' });
-		if (!Number.isInteger(season) || season < 1) return fail(400, { message: 'Invalid season.' });
+		const input = await readForm(request, episodeForm);
+		if (!input) return fail(400, INVALID_FORM);
+		const { id, season, episode } = input;
 
 		const db = getDb();
 		const [item] = await db
@@ -256,10 +284,9 @@ export const listActions = {
 	setSeasons: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		const requested = Number(form.get('seasons'));
-		if (!id) return fail(400, { message: 'Missing id.' });
+		const input = await readForm(request, seasonsForm);
+		if (!input) return fail(400, INVALID_FORM);
+		const { id, seasons: requested } = input;
 
 		const db = getDb();
 		const [item] = await db

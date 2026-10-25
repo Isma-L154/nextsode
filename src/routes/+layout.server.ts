@@ -24,8 +24,9 @@ import type { LayoutServerLoad } from './$types';
 function resolveCountry(request: Request): string {
 	const header = request.headers.get('cf-ipcountry')?.toUpperCase();
 	// `XX` is Cloudflare's marker for an unknown or reserved client, and `T1`
-	// means Tor — neither maps to a real TMDB region.
-	if (!header || header.length !== 2 || header === 'XX' || header === 'T1') return 'US';
+	// means Tor — neither maps to a real TMDB region. Two capital letters is also
+	// what `/api/details` accepts, so whatever this returns is a valid query.
+	if (!header || !/^[A-Z]{2}$/.test(header) || header === 'XX') return 'US';
 	return header;
 }
 

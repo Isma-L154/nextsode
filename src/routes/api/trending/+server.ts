@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { getTrending } from '#lib/server/tmdb/index.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { parseFields, positiveInt } from '#lib/server/validation.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -26,12 +28,9 @@ export const GET: RequestHandler = async (event) => {
 	await enforceRateLimit(event);
 	const { url } = event;
 
-	const raw = url.searchParams.get('page') ?? '1';
-	const page = Number(raw);
-
-	if (!Number.isInteger(page) || page < 1) {
-		error(400, 'Invalid page.');
-	}
+	const query = parseFields(v.strictObject({ page: v.optional(positiveInt) }), url.searchParams);
+	if (!query) error(400, 'Invalid page.');
+	const { page = 1 } = query;
 
 	try {
 		// `getTrending` clamps the upper bound, so a huge page number costs one
