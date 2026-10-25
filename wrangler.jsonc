@@ -45,6 +45,20 @@
 			"name": "API_RATE_LIMIT",
 			"namespace_id": "1001",
 			"simple": { "limit": 60, "period": 60 }
+		},
+		// Sign-in, per IP. One sign-in is two requests (start and callback), so
+		// this allows five a minute: plenty for a person, little for a script.
+		{
+			"name": "AUTH_RATE_LIMIT",
+			"namespace_id": "1002",
+			"simple": { "limit": 10, "period": 60 }
+		},
+		// Form actions, per signed-in account. Ticking through a season is one
+		// write per episode, which stays well under this.
+		{
+			"name": "ACCOUNT_RATE_LIMIT",
+			"namespace_id": "1003",
+			"simple": { "limit": 60, "period": 60 }
 		}
 	],
 	/**

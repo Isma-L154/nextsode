@@ -130,6 +130,7 @@ To deploy by hand: `npm run build && npx wrangler deploy`.
 - Every watchlist read _and_ write is scoped by the session's user id — item ids travel through the browser, so knowing one is not enough to touch someone else's list.
 - Input is length- and range-checked before it reaches the database, and season targets are always resolved server-side.
 - Personal responses are `private, no-store`; only the public TMDB proxies are edge-cached.
+- Rate limits run inside the Worker: per IP on the public routes and, more tightly, on sign-in; per account on every write.
 
 ## License
 

@@ -2,12 +2,18 @@ import { env } from 'cloudflare:workers';
 import { error, type RequestEvent } from '@sveltejs/kit';
 
 /**
- * A ceiling on how often one visitor may hit the public TMDB proxies.
+ * Ceilings on how often one caller may hit the routes that cost something.
  *
- * Those endpoints answer without a session on purpose — browsing works signed
- * out — which makes them the only place a script can spend a shared,
- * rate-limited API quota on everyone else's behalf. The sign-in flow needs no
- * equivalent: it holds no secret to guess and Google does the authenticating.
+ * Three bindings, declared in `wrangler.jsonc`, one per kind of caller:
+ *
+ * - `API_RATE_LIMIT`, per visitor IP, on the public routes that spend the
+ *   shared TMDB quota or read the database without a session.
+ * - `AUTH_RATE_LIMIT`, per visitor IP and much tighter, on the sign-in flow. It
+ *   holds no secret to guess, but every callback trades a code with Google and
+ *   writes a session row.
+ * - `ACCOUNT_RATE_LIMIT`, per signed-in account, on every form action. Writes
+ *   need a session, so the account is the caller: a script with one cookie and
+ *   many IPs still meets the same ceiling.
  *
  * Cloudflare's binding is approximate, and it is worth being specific about
  * how. The count is kept per location and per isolate, not globally — so the
@@ -17,9 +23,10 @@ import { error, type RequestEvent } from '@sveltejs/kit';
  * connections land on different isolates and none of them are refused.
  *
  * That is the right trade for the job, which is to stop one loop draining a
- * shared TMDB quota — a loop reuses its connection. It is not a defence
- * against a distributed caller, and nothing here should be read as one.
+ * shared TMDB quota or database — a loop reuses its connection. It is not a
+ * defence against a distributed caller, and nothing here should be read as one.
  */
+export type RateLimitBinding = 'API_RATE_LIMIT' | 'AUTH_RATE_LIMIT' | 'ACCOUNT_RATE_LIMIT';
 
 /**
  * Who is asking, as far as the edge can tell.
@@ -35,29 +42,40 @@ function visitorKey(event: RequestEvent): string | null {
 }
 
 /**
- * Apply the limit, or do nothing where it cannot be applied.
+ * Whether `key` is over the binding's limit.
  *
- * Two ways this is a no-op, both deliberate. Locally there is no binding and no
+ * Two ways this answers no without asking, both deliberate. Locally there is no
  * client IP, and failing closed would break `npm run dev` for everyone. In
  * production, a limiter that throws would turn a limiter outage into a site
- * outage — the endpoint it guards is less critical than the site itself.
- *
- * @throws a 429 when the caller is over the limit.
+ * outage — the route it guards is less critical than the site itself.
  */
-export async function enforceRateLimit(event: RequestEvent): Promise<void> {
-	const limiter = env.API_RATE_LIMIT;
-	const key = visitorKey(event);
-	if (!limiter || !key) return;
+export async function isRateLimited(
+	binding: RateLimitBinding,
+	key: string | null
+): Promise<boolean> {
+	const limiter = env[binding];
+	if (!limiter || !key) return false;
 
 	try {
 		const { success } = await limiter.limit({ key });
-		if (success) return;
+		return !success;
 	} catch (err) {
 		console.error('Rate limiter unavailable, allowing the request:', err);
-		return;
+		return false;
 	}
+}
 
-	// Outside the try on purpose: `error` throws, and catching it here would turn
-	// the rejection into an allow.
-	error(429, 'Too many requests. Please slow down and try again shortly.');
+export const TOO_MANY_REQUESTS = 'Too many requests. Please slow down and try again shortly.';
+
+/**
+ * Apply a per-visitor limit, keyed by IP unless the route names a better key.
+ *
+ * @throws a 429 when the caller is over the limit.
+ */
+export async function enforceRateLimit(
+	event: RequestEvent,
+	binding: RateLimitBinding = 'API_RATE_LIMIT',
+	key: string | null = visitorKey(event)
+): Promise<void> {
+	if (await isRateLimited(binding, key)) error(429, TOO_MANY_REQUESTS);
 }

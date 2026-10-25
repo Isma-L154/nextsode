@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { loadSharedList } from '#lib/server/share.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { PageServerLoad } from './$types';
 
 /**
@@ -14,7 +15,9 @@ import type { PageServerLoad } from './$types';
  * nothing about whether they may read this list; the URL is the only thing that
  * does, and it is the same page either way.
  */
-export const load: PageServerLoad = async ({ params, setHeaders }) => {
+export const load: PageServerLoad = async (event) => {
+	await enforceRateLimit(event);
+	const { params, setHeaders } = event;
 	/**
 	 * Set before the lookup, so they hold whether or not a list is found.
 	 *
