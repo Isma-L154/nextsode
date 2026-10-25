@@ -1,7 +1,9 @@
 import { fail, type Actions } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { issueCalendarToken, revokeCalendarToken } from '../../calendar';
 import { issueShareToken, revokeShareToken, setShareScope } from '../../share';
 import { scopeFromChoices } from '#lib/domain/share.js';
+import { INVALID_FORM, checkbox, readForm } from '../../validation';
 import { UNAUTHENTICATED } from './shared';
 
 /**
@@ -12,14 +14,19 @@ import { UNAUTHENTICATED } from './shared';
  */
 
 /**
- * The scope the share form is asking for, or null when it names nothing.
+ * The scope the share form is asking for: null when it names nothing, and
+ * `invalid` when the body is not the share form at all.
  *
  * An unchecked box is absent from a form body rather than false, so presence is
  * the whole test. Both actions that write a scope read it through here, which is
  * what keeps "neither box ticked" one rule rather than two.
  */
-function scopeFromShareForm(form: FormData) {
-	return scopeFromChoices(form.has('toWatch'), form.has('watched'));
+const shareForm = v.strictObject({ toWatch: checkbox, watched: checkbox });
+
+async function readShareScope(request: Request) {
+	const input = await readForm(request, shareForm);
+	if (!input) return 'invalid' as const;
+	return scopeFromChoices(input.toWatch === 'on', input.watched === 'on');
 }
 
 export const sharingActions = {
@@ -57,7 +64,8 @@ export const sharingActions = {
 	issueShareLink: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const scope = scopeFromShareForm(await request.formData());
+		const scope = await readShareScope(request);
+		if (scope === 'invalid') return fail(400, INVALID_FORM);
 		if (!scope) return fail(400, { message: 'Choose what to share first.' });
 
 		await issueShareToken(locals.user.id, scope);
@@ -74,7 +82,8 @@ export const sharingActions = {
 	updateShareScope: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const scope = scopeFromShareForm(await request.formData());
+		const scope = await readShareScope(request);
+		if (scope === 'invalid') return fail(400, INVALID_FORM);
 		if (!scope) return fail(400, { message: 'Choose what to share first.' });
 
 		await setShareScope(locals.user.id, scope);

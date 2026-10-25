@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { getPersonFilmography } from '#lib/server/tmdb/index.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { parseFields, positiveInt } from '#lib/server/validation.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -19,10 +21,9 @@ const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400, stale-while-revalid
 export const GET: RequestHandler = async (event) => {
 	await enforceRateLimit(event);
 
-	const personId = Number(event.params.id);
-	if (!Number.isInteger(personId) || personId <= 0) {
-		error(400, 'Invalid person id.');
-	}
+	const path = parseFields(v.strictObject({ id: positiveInt }), Object.entries(event.params));
+	if (!path) error(400, 'Invalid person id.');
+	const personId = path.id;
 
 	try {
 		const person = await getPersonFilmography(personId);

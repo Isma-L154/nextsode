@@ -1,7 +1,9 @@
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { buildCalendar } from '#lib/domain/calendar.js';
 import { loadCalendarEntries } from '#lib/server/calendar.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { token } from '#lib/server/validation.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -17,7 +19,7 @@ export const GET: RequestHandler = async (event) => {
 	// from the same few addresses.
 	await enforceRateLimit(event, 'API_RATE_LIMIT', `calendar:${event.params.token}`);
 	const { params, url, setHeaders } = event;
-	const entries = await loadCalendarEntries(params.token);
+	const entries = v.is(token, params.token) ? await loadCalendarEntries(params.token) : null;
 
 	// The same answer for a revoked token, a mistyped one and one that never
 	// existed. Distinguishing them would confirm that a URL was once real.

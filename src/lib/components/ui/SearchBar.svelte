@@ -93,6 +93,7 @@
 		{placeholder}
 		autocomplete="off"
 		enterkeyhint="search"
+		maxlength="120"
 		class="w-full rounded-2xl border border-line bg-surface py-3.5 pr-12 pl-11 text-base text-ink shadow-inner shadow-black/20 transition-colors duration-200 placeholder:text-ink-faint focus:border-brand focus:bg-surface-hi"
 	/>
 

@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { searchMulti } from '#lib/server/tmdb/index.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
+import { parseFields } from '#lib/server/validation.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -8,7 +10,8 @@ import type { RequestHandler } from './$types';
  *
  * The endpoint is public, so the query string is attacker-controlled. Without a
  * cap, a single request could push an arbitrarily large string into an outbound
- * TMDB URL; no real search is anywhere near this long.
+ * TMDB URL; no real search is anywhere near this long. The search box caps its
+ * input at the same length, so only a hand-built request is refused.
  */
 const MAX_QUERY_LENGTH = 120;
 
@@ -37,7 +40,12 @@ export const GET: RequestHandler = async (event) => {
 	await enforceRateLimit(event);
 	const { url } = event;
 
-	const query = (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY_LENGTH);
+	const input = parseFields(
+		v.strictObject({ q: v.pipe(v.string(), v.trim(), v.maxLength(MAX_QUERY_LENGTH)) }),
+		url.searchParams
+	);
+	if (!input) error(400, 'Invalid search.');
+	const query = input.q;
 	if (!query) return Response.json({ results: [], people: [] });
 
 	try {

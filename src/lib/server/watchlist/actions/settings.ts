@@ -1,16 +1,25 @@
 import { fail, type Actions } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { and, eq, isNotNull, lt } from 'drizzle-orm';
 import { getDb } from '../../db';
 import { user, watchlistItem } from '../../db/schema';
-import { clip } from '../../form';
-import { normalizeDeletionWindow } from '#lib/domain/deletion.js';
-import { UNAUTHENTICATED } from './shared';
+import { INVALID_FORM, readForm } from '../../validation';
+import { DELETION_WINDOWS, type DeletionWindow } from '#lib/domain/deletion.js';
+import { UNAUTHENTICATED, rowForm } from './shared';
 import { ownedRow } from '../owned';
 
 /**
  * Account-level choices about the list rather than edits to it: how long a
  * watched title survives, and the one-tap way to answer that countdown.
  */
+
+/** An offered window in days, or empty for off. */
+const autoDeleteForm = v.strictObject({
+	days: v.pipe(
+		v.picklist(['', ...DELETION_WINDOWS.map(String)]),
+		v.transform((days) => (days ? (Number(days) as DeletionWindow) : null))
+	)
+});
 
 export const settingsActions = {
 	/**
@@ -34,8 +43,9 @@ export const settingsActions = {
 	setAutoDelete: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const days = normalizeDeletionWindow(form.get('days'));
+		const input = await readForm(request, autoDeleteForm);
+		if (!input) return fail(400, INVALID_FORM);
+		const { days } = input;
 
 		const db = getDb();
 		await db.update(user).set({ autoDeleteDays: days }).where(eq(user.id, locals.user.id));
@@ -62,9 +72,9 @@ export const settingsActions = {
 	keepLonger: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
 
-		const form = await request.formData();
-		const id = clip(form.get('id'), 64);
-		if (!id) return fail(400, { message: 'Missing id.' });
+		const input = await readForm(request, rowForm);
+		if (!input) return fail(400, INVALID_FORM);
+		const { id } = input;
 
 		await getDb()
 			.update(watchlistItem)

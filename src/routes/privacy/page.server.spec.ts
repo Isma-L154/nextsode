@@ -22,16 +22,19 @@ vi.mock('#lib/server/auth.js', () => ({
 
 const { actions } = await import('./+page.server');
 
-function event(userId: string | null): RequestEvent {
+function event(userId: string | null, form: Record<string, string>): RequestEvent {
 	return {
-		request: new Request('http://localhost/privacy', { method: 'POST' }),
+		request: new Request('http://localhost/privacy', {
+			method: 'POST',
+			body: new URLSearchParams(form)
+		}),
 		cookies: {},
 		locals: { user: userId ? { id: userId, name: 'T', email: 't@e.com', avatarUrl: null } : null }
 	} as unknown as RequestEvent;
 }
 
-const deleteAccount = (userId: string | null) =>
-	(actions.deleteAccount as (e: RequestEvent) => Promise<unknown>)(event(userId));
+const deleteAccount = (userId: string | null, form: Record<string, string> = { confirm: 'on' }) =>
+	(actions.deleteAccount as (e: RequestEvent) => Promise<unknown>)(event(userId, form));
 
 beforeEach(async () => {
 	harness = await createTestDatabase();
@@ -79,6 +82,11 @@ describe('deleteAccount', () => {
 		await expect(deleteAccount('user-1')).rejects.toMatchObject({ status: 303 });
 
 		expect(await rows()).toEqual({ users: 1, items: 1, sessions: 0 });
+	});
+
+	it('does nothing unless the confirmation box was ticked', async () => {
+		expect(await deleteAccount('user-1', {})).toMatchObject({ status: 400 });
+		expect(await rows()).toEqual({ users: 1, items: 2, sessions: 1 });
 	});
 
 	it('does nothing without a session', async () => {

@@ -268,8 +268,13 @@ describe('setAutoDelete', () => {
 		expect(await call('setAutoDelete', { days: '30' })).toEqual({ autoDeleteDays: 30 });
 	});
 
-	it('stores anything unrecognised as off rather than rejecting it', async () => {
-		expect(await call('setAutoDelete', { days: '3' })).toEqual({ autoDeleteDays: null });
+	it('refuses a window it does not offer, rather than storing it as off', async () => {
+		await call('setAutoDelete', { days: '30' });
+
+		expect(await call('setAutoDelete', { days: '3' })).toMatchObject({ status: 400 });
+
+		const [row] = await harness.db.select().from(user).where(eq(user.id, 'user-1'));
+		expect(row?.autoDeleteDays).toBe(30);
 	});
 
 	it('restarts the clock on a title already past the new window', async () => {
@@ -356,6 +361,46 @@ describe('ownership', () => {
 			).toMatchObject({ status: 401 });
 		}
 		expect(await read()).toBeDefined();
+	});
+});
+
+describe('validation', () => {
+	/**
+	 * A value outside the schema is refused, never repaired: truncating, clamping
+	 * or defaulting would store something nobody sent.
+	 */
+	it('refuses a field the form does not have', async () => {
+		await saveShow();
+
+		expect(await call('remove', { id: 'item-1', extra: 'x' })).toMatchObject({ status: 400 });
+		expect(await read()).toBeDefined();
+	});
+
+	it('refuses an overlong value instead of cutting it', async () => {
+		const form = { tmdbId: '1', mediaType: 'tv', title: 'x'.repeat(301) };
+
+		expect(await call('add', form)).toMatchObject({ status: 400 });
+		expect(await harness.db.select().from(watchlistItem)).toHaveLength(0);
+	});
+
+	it('refuses a number written any way but plainly', async () => {
+		await saveShow();
+
+		for (const seasons of ['1.5', '-1', '1e1', ' 2', '0x2', '']) {
+			expect(await call('setSeasons', { id: 'item-1', seasons })).toMatchObject({ status: 400 });
+		}
+	});
+
+	it('refuses a rating outside 0 to 10', async () => {
+		const form = { tmdbId: '1', mediaType: 'tv', title: 'Silo', voteAverage: '11' };
+
+		expect(await call('add', form)).toMatchObject({ status: 400 });
+	});
+
+	it('refuses a body past the size limit', async () => {
+		const form = { tmdbId: '1', mediaType: 'tv', title: 'Silo', overview: 'x'.repeat(40_000) };
+
+		expect(await call('add', form)).toMatchObject({ status: 400 });
 	});
 });
 
