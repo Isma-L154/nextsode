@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { buildCalendar } from '#lib/domain/calendar.js';
 import { loadCalendarEntries } from '#lib/server/calendar.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -11,7 +12,11 @@ import type { RequestHandler } from './$types';
  * is why the route lives outside `/watchlist` and why every read below is
  * scoped by the row the token resolves to.
  */
-export const GET: RequestHandler = async ({ params, url, setHeaders }) => {
+export const GET: RequestHandler = async (event) => {
+	// Keyed by feed, not by IP: one Google fetcher polls every subscriber's feed
+	// from the same few addresses.
+	await enforceRateLimit(event, 'API_RATE_LIMIT', `calendar:${event.params.token}`);
+	const { params, url, setHeaders } = event;
 	const entries = await loadCalendarEntries(params.token);
 
 	// The same answer for a revoked token, a mistyped one and one that never

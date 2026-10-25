@@ -22,6 +22,10 @@ vi.mock('../db', () => ({ getDb: () => harness.db }));
 const details = vi.hoisted(() => vi.fn());
 vi.mock('../tmdb', () => ({ getDetails: details }));
 
+/** The per-account limiter, stubbed to allow unless a test says otherwise. */
+const isRateLimited = vi.hoisted(() => vi.fn(async () => false));
+vi.mock('../rate-limit', () => ({ isRateLimited, TOO_MANY_REQUESTS: 'Too many requests.' }));
+
 const { watchlistActions } = await import('./actions');
 
 /** A show with three aired seasons of ten episodes, and no fourth announced. */
@@ -351,6 +355,17 @@ describe('ownership', () => {
 				await call(action, { id: 'item-1', seasons: '2', season: '1', episode: '1' }, null)
 			).toMatchObject({ status: 401 });
 		}
+		expect(await read()).toBeDefined();
+	});
+});
+
+describe('rate limit', () => {
+	it('turns an account over its limit away before the action runs', async () => {
+		await saveShow();
+		isRateLimited.mockResolvedValueOnce(true);
+
+		expect(await call('remove', { id: 'item-1' })).toMatchObject({ status: 429 });
+		expect(isRateLimited).toHaveBeenCalledWith('ACCOUNT_RATE_LIMIT', 'user-1');
 		expect(await read()).toBeDefined();
 	});
 });

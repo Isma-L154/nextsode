@@ -8,6 +8,7 @@ import {
 	createGoogleClient,
 	isGoogleAuthConfigured
 } from '#lib/server/oauth.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -17,7 +18,9 @@ import type { RequestHandler } from './$types';
  * across the round-trip. Both are httpOnly and are checked (then cleared) by
  * the callback route.
  */
-export const GET: RequestHandler = async ({ cookies, locals, url }) => {
+export const GET: RequestHandler = async (event) => {
+	await enforceRateLimit(event, 'AUTH_RATE_LIMIT');
+	const { cookies, locals, url } = event;
 	if (locals.user) redirect(302, '/');
 	// Missing credentials is a deployment problem, not a visitor error — say so
 	// on the home page instead of throwing a 500 at them.

@@ -10,6 +10,7 @@ import {
 	fetchGoogleProfile,
 	type GoogleProfile
 } from '#lib/server/oauth.js';
+import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import type { RequestHandler } from './$types';
 
 /**
@@ -25,7 +26,9 @@ const LEGACY_OWNER_ID = '__legacy__';
  * Every failure path lands on `/?auth=error` rather than an error page: the
  * visitor can simply press the button again, and no internal detail leaks.
  */
-export const GET: RequestHandler = async ({ cookies, url }) => {
+export const GET: RequestHandler = async (event) => {
+	await enforceRateLimit(event, 'AUTH_RATE_LIMIT');
+	const { cookies, url } = event;
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const expectedState = cookies.get(STATE_COOKIE);
