@@ -32,10 +32,17 @@ export default defineConfig({
 				directives: {
 					'default-src': ['self'],
 					'script-src': ['self'],
-					// Styles stay permissive: Tailwind and Svelte both emit inline
-					// style attributes during SSR, and an injected style cannot
-					// execute — a far smaller risk than the same allowance on script.
-					'style-src': ['self', 'unsafe-inline'],
+					// No inline style attributes in server-rendered markup. Svelte's
+					// `style:` directives are safe once hydrated, because the client
+					// writes them through the CSSOM, which this does not govern.
+					'style-src': ['self'],
+					// The one exception: the style attribute on SvelteKit's own route
+					// announcer, allowed by its exact hash. `src/csp.spec.ts`
+					// fails when a SvelteKit update changes it.
+					'style-src-attr': [
+						'unsafe-hashes',
+						'sha256-S8qMpvofolR8Mpjy4kQvEm7m1q8clzU4dfDH0AmvZjo='
+					],
 					// Posters from TMDB, avatars from Google, inline SVG data URIs.
 					'img-src': ['self', 'data:', 'https://image.tmdb.org', 'https://*.googleusercontent.com'],
 					'font-src': ['self'],
