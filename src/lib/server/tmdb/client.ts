@@ -49,15 +49,12 @@ export async function tmdbFetch<T>(
 	params: Record<string, string> = {},
 	cacheSeconds = 0
 ): Promise<T> {
-	const token = TMDB_ACCESS_TOKEN;
-	if (!token) throw new Error('TMDB_ACCESS_TOKEN is not set');
-
 	const url = new URL(`${TMDB_BASE_URL}${path}`);
 	for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
 	const response = await fetch(url, {
 		headers: {
-			Authorization: `Bearer ${token}`,
+			Authorization: `Bearer ${TMDB_ACCESS_TOKEN}`,
 			accept: 'application/json'
 		},
 		...(cacheSeconds > 0 && { cf: { cacheTtl: cacheSeconds, cacheEverything: true } })

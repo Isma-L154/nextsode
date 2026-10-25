@@ -16,8 +16,6 @@ let database: LibSQLDatabase<typeof schema> | undefined;
 export function getDb(): LibSQLDatabase<typeof schema> {
 	if (database) return database;
 
-	if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
-
 	// A remote libSQL/Turso database requires an auth token, while a local SQLite
 	// file used during development does not.
 	const isRemote = DATABASE_URL.startsWith('libsql://');

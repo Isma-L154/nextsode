@@ -19,6 +19,12 @@ jobs:
   quality:
     name: Lint, type-check & unit tests
     runs-on: ubuntu-latest
+    # SvelteKit validates the required variables when it loads server modules,
+    # in the tests and in the build's analysis step. Neither talks to TMDB or the
+    # database, so placeholders satisfy it.
+    env:
+      DATABASE_URL: 'file::memory:'
+      TMDB_ACCESS_TOKEN: ci-placeholder
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -81,8 +87,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The real values live in Cloudflare and are validated again when the
+      # Worker serves its first request; the build only needs something there.
       - name: Build
         run: npm run build
+        env:
+          DATABASE_URL: 'file::memory:'
+          TMDB_ACCESS_TOKEN: ci-placeholder
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
