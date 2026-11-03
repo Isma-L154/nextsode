@@ -58,7 +58,7 @@ Cloudflare Workers
 
 ## Running locally
 
-Needs Node 22+, a free [TMDB](https://www.themoviedb.org/settings/api) token and
+Needs Node 24+, a free [TMDB](https://www.themoviedb.org/settings/api) token and
 a Google OAuth client.
 
 ```bash
