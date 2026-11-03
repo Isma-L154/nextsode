@@ -1,4 +1,4 @@
-﻿# Normalise line endings so generated files (notably worker-configuration.d.ts)
+# Normalise line endings so generated files (notably worker-configuration.d.ts)
 # do not flip between LF and CRLF across machines — a mismatch there makes
 # `wrangler types --check`, and therefore the build, fail spuriously.
 * text=auto eol=lf
