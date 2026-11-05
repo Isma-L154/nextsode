@@ -22,9 +22,11 @@
 		title: Pick<MediaResult, 'tmdbId' | 'mediaType'>;
 		/** Opening a title from a filmography swaps the sheet to that title. */
 		onSelectTitle: (item: MediaResult) => void;
+		/** One below the title's own heading, so the outline nests in both frames. */
+		level: 'h2' | 'h3';
 	}
 
-	let { cast, title, onSelectTitle }: Props = $props();
+	let { cast, title, onSelectTitle, level }: Props = $props();
 
 	/** The face whose filmography is open, by TMDB person id. */
 	let openPerson = $state<number | null>(null);
@@ -45,7 +47,12 @@
 </script>
 
 {#if cast.length}
-	<h3 class="mt-7 text-sm font-bold tracking-wide text-ink-muted uppercase">Cast</h3>
+	<svelte:element
+		this={level}
+		class="mt-7 text-sm font-bold tracking-wide text-ink-muted uppercase"
+	>
+		Cast
+	</svelte:element>
 	<div class="mt-1">
 		<ScrollRail label="Cast">
 			{#each cast as person (person.id + '|' + person.character)}

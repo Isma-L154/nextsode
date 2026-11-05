@@ -4,6 +4,7 @@
 	import Icon from '#lib/components/ui/Icon.svelte';
 	import MediaCard from './MediaCard.svelte';
 	import { hasStarted, progressNote } from '#lib/domain/episodes.js';
+	import { titlePath } from '#lib/format/title-url.js';
 	import type { MediaResult, SavedEntry } from '#lib/types.js';
 
 	/**
@@ -19,6 +20,10 @@
 		signedIn: boolean;
 		/** Forwarded to the poster; set for the tiles above the fold. */
 		priority?: boolean;
+		/**
+		 * Opens the sheet. The tile is still a link to the title's page, which is
+		 * what a crawler follows and what a modified click opens in a new tab.
+		 */
 		onSelect: () => void;
 		onSubmit: SubmitFunction;
 	}
@@ -49,6 +54,7 @@
 	{note}
 	{priority}
 	{onSelect}
+	href={titlePath(item)}
 >
 	{#snippet actions()}
 		{#if !signedIn}

@@ -42,6 +42,7 @@ function showDetails(over: Partial<MediaDetails> = {}): MediaDetails {
 		seasons: 3,
 		airedSeasons: 3,
 		upcomingSeason: null,
+		nextEpisode: null,
 		episodeCounts: { 1: 10, 2: 10, 3: 10 },
 		season: null,
 		productionStatus: 'Returning Series',

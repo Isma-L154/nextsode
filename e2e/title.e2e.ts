@@ -38,6 +38,20 @@ test('the page carries the tags a chat app unfurls', async ({ request }) => {
 	expect(html).toContain('"@type":"Movie"');
 });
 
+test('the page links on to related titles and outlines its sections', async ({ request }) => {
+	const html = await (await request.get(INTERSTELLAR)).text();
+
+	// The path a crawler takes from one title to the next.
+	const related = new Set(html.match(/href="\/title\/(movie|tv)\/[^"]+"/g));
+	expect(related.size).toBeGreaterThanOrEqual(3);
+	expect(html).not.toContain('href="/title/movie/157336-interstellar"');
+
+	for (const section of ['Where to watch', 'Overview', 'Cast', 'More like this']) {
+		// Svelte's hydration markers may sit between the text and the closing tag.
+		expect(html).toMatch(new RegExp(`<h2[^>]*>\\s*${section}\\s*(<!---->)?</h2>`));
+	}
+});
+
 test('progress controls stay out of a page with no list behind it', async ({ page }) => {
 	// A show, so the season controls would have something to attach to if they
 	// were rendered at all.

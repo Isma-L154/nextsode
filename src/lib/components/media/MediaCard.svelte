@@ -33,10 +33,11 @@
 		/** When provided, the poster and title become clickable to open details. */
 		onSelect?: () => void;
 		/**
-		 * Where the tile leads, when following it means navigating rather than
-		 * opening a sheet. A real anchor, so a shared list can be opened into
-		 * background tabs. Ignored when `onSelect` is given; a tile has one
-		 * behaviour.
+		 * Where the tile leads. A real anchor, so it can be opened into a
+		 * background tab and followed by a crawler that runs no JavaScript.
+		 *
+		 * With `onSelect` as well, a plain click still opens the sheet; only a
+		 * modified or middle click follows the link.
 		 */
 		href?: string;
 		/** Action controls rendered in the card footer (buttons, forms, badges). */
@@ -64,6 +65,14 @@
 	/** Shared by the button and anchor forms of the title, so neither drifts. */
 	const TITLE_LINK =
 		'-my-3 block cursor-pointer py-3 text-left text-sm leading-snug font-semibold text-ink transition-colors duration-200 hover:text-brand-hi';
+
+	function follow(event: MouseEvent) {
+		const plain =
+			event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+		if (!onSelect || !plain) return;
+		event.preventDefault();
+		onSelect();
+	}
 
 	const poster = $derived(posterUrl(posterPath, 'w342'));
 	const year = $derived(releaseYear(releaseDate));
@@ -181,16 +190,17 @@
 
 		<!-- Transparent overlay opens the detail view (kept last so it sits
 		     on top of the badges and the overlay). -->
-		{#if onSelect}
+		{#if href}
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- `href` is an in-app path built by the caller's route helper; see the prop's doc -->
+			<a {href} onclick={follow} aria-label={`View details for ${title}`} class="absolute inset-0"
+			></a>
+		{:else if onSelect}
 			<button
 				type="button"
 				onclick={onSelect}
 				aria-label={`View details for ${title}`}
 				class="absolute inset-0 cursor-pointer"
 			></button>
-		{:else if href}
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- `href` is an in-app path built by the caller's route helper; see the prop's doc -->
-			<a {href} aria-label={`View details for ${title}`} class="absolute inset-0"></a>
 		{/if}
 	</div>
 
@@ -204,15 +214,15 @@
 				to become; and `overflow: hidden` clips at the padding box, so a third
 				line would paint over the year the negative margin pulled up to meet.
 			-->
-			{#if onSelect}
+			{#if href}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- same in-app path as the poster overlay above -->
+				<a {href} onclick={follow} {title} class={TITLE_LINK}>
+					<span class="line-clamp-2">{title}</span>
+				</a>
+			{:else}
 				<button type="button" onclick={onSelect} {title} class={TITLE_LINK}>
 					<span class="line-clamp-2">{title}</span>
 				</button>
-			{:else}
-				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- same in-app path as the poster overlay above -->
-				<a {href} {title} class={TITLE_LINK}>
-					<span class="line-clamp-2">{title}</span>
-				</a>
 			{/if}
 		{:else}
 			<h3 class="line-clamp-2 text-sm leading-snug font-semibold text-ink" {title}>{title}</h3>

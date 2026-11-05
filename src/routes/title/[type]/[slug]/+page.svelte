@@ -5,6 +5,8 @@
 	import TitleDetail from '#lib/components/media/TitleDetail.svelte';
 	import SaveControl from '#lib/components/media/SaveControl.svelte';
 	import ShareButton from '#lib/components/media/ShareButton.svelte';
+	import RelatedTitles from '#lib/components/media/RelatedTitles.svelte';
+	import { isThinTitle } from '#lib/domain/discoverability.js';
 	import { titleSchema } from '#lib/format/seo.js';
 	import { titlePath } from '#lib/format/title-url.js';
 	import { backdropUrl, posterUrl, releaseYear } from '#lib/format/tmdb-image.js';
@@ -81,6 +83,7 @@
 	description={metaDescription}
 	origin={page.data.origin}
 	{path}
+	indexable={!isThinTitle(details)}
 	image={cardImage}
 	imageAlt={`${details.title} — ${kind.toLowerCase()} artwork`}
 	type={details.mediaType === 'movie' ? 'video.movie' : 'video.tv_show'}
@@ -111,4 +114,6 @@
 			{/snippet}
 		</TitleDetail>
 	</article>
+
+	<RelatedTitles items={data.related} />
 </div>

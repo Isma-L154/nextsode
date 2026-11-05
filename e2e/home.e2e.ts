@@ -102,3 +102,24 @@ test('serves baseline security headers', async ({ page }) => {
 	// Personalised HTML must never be cacheable by a shared proxy.
 	expect(headers['cache-control']).toContain('no-store');
 });
+
+test('the server-rendered page links to every trending title', async ({ request }) => {
+	// A crawler reads this response and nothing after it, so the links have to
+	// be in the HTML rather than wired up by JavaScript.
+	const html = await (await request.get('/')).text();
+	const titleLinks = new Set(html.match(/href="\/title\/(movie|tv)\/[^"]+"/g));
+
+	expect(titleLinks.size).toBeGreaterThanOrEqual(10);
+});
+
+test('a plain click on a trending card still opens the sheet', async ({ page }) => {
+	await page.goto('/');
+
+	const card = page.locator('a[href^="/title/"]').first();
+	const name = (await card.getAttribute('aria-label'))?.replace('View details for ', '') ?? '';
+	await card.click();
+
+	await expect(page).toHaveURL(/\/$/);
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await expect(page.getByRole('dialog').getByRole('heading', { name, level: 2 })).toBeVisible();
+});

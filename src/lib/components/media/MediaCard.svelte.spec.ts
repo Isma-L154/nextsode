@@ -109,3 +109,42 @@ describe('MediaCard footer', () => {
 		expect(titleBox(root).tagName).toBe('H3');
 	});
 });
+
+describe('MediaCard link', () => {
+	/** A same-page href, so a click the card lets through does not unload the test. */
+	const HREF = '#title-page';
+
+	function click(target: Element, init: MouseEventInit = {}) {
+		const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...init });
+		target.dispatchEvent(event);
+		return event;
+	}
+
+	it('renders real links to the title, for crawlers and new tabs', async () => {
+		const root = await card({ href: HREF });
+		const links = [...root.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+
+		expect(links).toEqual([HREF, HREF]);
+		expect(root.querySelector('button')).toBeNull();
+	});
+
+	it('opens the sheet on a plain click instead of navigating', async () => {
+		const onSelect = vi.fn();
+		const root = await card({ href: HREF, onSelect });
+
+		const event = click(titleBox(root).closest('a') as HTMLElement);
+
+		expect(onSelect).toHaveBeenCalledOnce();
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it('leaves a modified click to the browser', async () => {
+		const onSelect = vi.fn();
+		const root = await card({ href: HREF, onSelect });
+
+		const event = click(titleBox(root).closest('a') as HTMLElement, { ctrlKey: true });
+
+		expect(onSelect).not.toHaveBeenCalled();
+		expect(event.defaultPrevented).toBe(false);
+	});
+});

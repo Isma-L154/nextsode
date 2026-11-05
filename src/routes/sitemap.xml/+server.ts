@@ -1,20 +1,19 @@
-import { getTrending } from '#lib/server/tmdb/index.js';
+import { getRecommendations, getTrending } from '#lib/server/tmdb/index.js';
+import { isThinTitle, relatedTitles } from '#lib/domain/discoverability.js';
+import { uniqueBy } from '#lib/domain/media.js';
 import { titlePath } from '#lib/format/title-url.js';
+import type { MediaResult } from '#lib/types.js';
 import type { RequestHandler } from './$types';
 
 /**
- * The public surface: the home page, the two legal ones, and the titles.
+ * The public surface: the home page, the two legal ones, and the titles a
+ * crawler can actually reach by following links.
  *
- * It used to be three URLs, because there was nothing else a stranger could
- * open. Titles changed that — every film and show now has a page of its own —
- * and a sitemap is how a crawler learns that a section exists at all, since
- * nothing on the home page links into it until somebody shares a link.
- *
- * Which titles, though, is a real question: there are a million of them and
- * enumerating TMDB would be both rude and useless. This lists what is trending
- * this week, which is the set most likely to be searched for this week, and
- * lets the rest be discovered from shared links and from the cast rows that
- * connect one title to another.
+ * Not every title — there are a million of them, and a sitemap URL that no page
+ * links to is one Google leaves unknown. So it lists the first page of trending,
+ * which the home page renders as links, and each of those titles' "More like
+ * this" row, which their pages render as links. Everything else is found the
+ * same way, one link at a time.
  *
  * Everything still private (a list), a redirect (sign-in) or a proxy (the API)
  * stays out: listing those would spend crawl budget to have each one rejected.
@@ -23,48 +22,37 @@ import type { RequestHandler } from './$types';
  */
 const CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
 
-/** Path, how often it is worth re-reading, and its weight relative to the rest. */
+/** When the legal pages last changed: the date each one states at its top. */
+const LEGAL_UPDATED = '2026-09-20';
+
+/** Path, when it last changed, how often it is worth re-reading, and its weight. */
 interface Entry {
 	path: string;
+	lastmod: string;
 	changefreq: string;
 	priority: string;
 }
 
-const PAGES: ReadonlyArray<Entry> = [
-	{ path: '/', changefreq: 'daily', priority: '1.0' },
-	{ path: '/terms', changefreq: 'yearly', priority: '0.3' },
-	{ path: '/privacy', changefreq: 'yearly', priority: '0.3' }
-];
-
 /**
- * How many trending pages to walk. Two is forty titles — enough to be worth
- * fetching, small enough that a sitemap request stays one or two API calls.
- */
-const TRENDING_PAGES = 2;
-
-/**
- * The trending titles, or none at all.
+ * The titles linked from the home page and from their own pages.
+ *
+ * Thin titles are left out because their pages are `noindex`, and submitting a
+ * page that refuses the index is an error in Search Console.
  *
  * A sitemap that fails is worse than a short one: a crawler reads a 500 as "come
  * back later" and may stop trusting the file. So a TMDB outage costs the title
- * entries and nothing else — the three static pages are still served, which is
- * exactly what this file did before titles existed.
+ * entries and nothing else, and one failed row costs only that row.
  */
-async function trendingEntries(): Promise<Entry[]> {
+async function reachableTitles(): Promise<MediaResult[]> {
 	try {
-		const pages = await Promise.all(
-			Array.from({ length: TRENDING_PAGES }, (_, index) => getTrending(index + 1))
+		const trending = (await getTrending(1)).results.filter((item) => !isThinTitle(item));
+		const rows = await Promise.allSettled(
+			trending.map(async (item) =>
+				relatedTitles(await getRecommendations(item.mediaType, item.tmdbId), item)
+			)
 		);
-
-		return pages
-			.flatMap((page) => page.results)
-			.map((item) => ({
-				// Weekly, because that is how often the underlying details change in
-				// any way a crawler would care about: a new rating, a new provider.
-				path: titlePath(item),
-				changefreq: 'weekly',
-				priority: '0.6'
-			}));
+		const related = rows.flatMap((row) => (row.status === 'fulfilled' ? row.value : []));
+		return [...trending, ...related];
 	} catch (err) {
 		console.error('Sitemap trending fetch failed:', err);
 		return [];
@@ -72,10 +60,27 @@ async function trendingEntries(): Promise<Entry[]> {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-	const entries = [...PAGES, ...(await trendingEntries())]
+	// Trending, ratings and providers are re-read daily, so today is when the
+	// home page and the titles last changed.
+	const today = new Date().toISOString().slice(0, 10);
+
+	const pages: Entry[] = [
+		{ path: '/', lastmod: today, changefreq: 'daily', priority: '1.0' },
+		{ path: '/terms', lastmod: LEGAL_UPDATED, changefreq: 'yearly', priority: '0.3' },
+		{ path: '/privacy', lastmod: LEGAL_UPDATED, changefreq: 'yearly', priority: '0.3' }
+	];
+	const titles: Entry[] = (await reachableTitles()).map((item) => ({
+		path: titlePath(item),
+		lastmod: today,
+		changefreq: 'weekly',
+		priority: '0.6'
+	}));
+
+	const entries = uniqueBy([...pages, ...titles], (entry) => entry.path)
 		.map(
-			({ path, changefreq, priority }) => `	<url>
+			({ path, lastmod, changefreq, priority }) => `	<url>
 		<loc>${url.origin}${path}</loc>
+		<lastmod>${lastmod}</lastmod>
 		<changefreq>${changefreq}</changefreq>
 		<priority>${priority}</priority>
 	</url>`
