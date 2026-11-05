@@ -18,9 +18,11 @@
 	interface Props {
 		watch: WatchOptions;
 		title: string;
+		/** One below the title's own heading, so the outline nests in both frames. */
+		level: 'h2' | 'h3';
 	}
 
-	let { watch, title }: Props = $props();
+	let { watch, title, level }: Props = $props();
 
 	/**
 	 * Rent and buy are the same decision — "pay per view" — so they share a row
@@ -76,9 +78,13 @@
 
 <section aria-labelledby="watch-heading" class="mt-6">
 	<div class="flex items-baseline justify-between gap-3">
-		<h3 id="watch-heading" class="text-[11px] font-bold tracking-widest text-ink-muted uppercase">
+		<svelte:element
+			this={level}
+			id="watch-heading"
+			class="text-[11px] font-bold tracking-widest text-ink-muted uppercase"
+		>
 			Where to watch
-		</h3>
+		</svelte:element>
 		<span class="text-xs text-ink-faint">{regionName}</span>
 	</div>
 

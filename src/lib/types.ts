@@ -120,6 +120,14 @@ export interface UpcomingSeason {
 	airDate: string | null;
 }
 
+/** The next episode TMDB has scheduled for a series that is still airing. */
+export interface NextEpisode {
+	season: number;
+	episode: number;
+	/** `YYYY-MM-DD`, or null when TMDB has no date yet. */
+	airDate: string | null;
+}
+
 /**
  * One episode of a season.
  *
@@ -160,6 +168,8 @@ export interface MediaDetails {
 	airedSeasons: number | null;
 	/** TV only: the next season still to premiere, if there is one. */
 	upcomingSeason: UpcomingSeason | null;
+	/** TV only: the next scheduled episode, while the series is airing. */
+	nextEpisode: NextEpisode | null;
 	/**
 	 * TV only: how many episodes each numbered season holds, indexed by season
 	 * number. Comes free with the details response, so the app can roll over from

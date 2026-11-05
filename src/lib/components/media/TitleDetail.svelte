@@ -4,6 +4,7 @@
 	import DetailHeading from './DetailHeading.svelte';
 	import ReleaseBanner from './ReleaseBanner.svelte';
 	import AddToCalendar from './AddToCalendar.svelte';
+	import SeriesStatus from './SeriesStatus.svelte';
 	import WatchProviders from './WatchProviders.svelte';
 	import CastRow from './CastRow.svelte';
 	import type { MediaDetails, MediaResult } from '#lib/types.js';
@@ -37,6 +38,8 @@
 	}
 
 	let { details, heading = 'h2', progress, actions, onSelectTitle }: Props = $props();
+
+	const sectionHeading = $derived(heading === 'h1' ? 'h2' : 'h3');
 </script>
 
 <DetailArtwork {details} />
@@ -49,11 +52,12 @@
 	<!-- Directly under the banner that says it is not out yet: that is the
 	     sentence this answers. -->
 	<AddToCalendar {details} />
+	<SeriesStatus {details} />
 
 	{@render progress?.()}
 
 	{#if details.watch}
-		<WatchProviders watch={details.watch} title={details.title} />
+		<WatchProviders watch={details.watch} title={details.title} level={sectionHeading} />
 	{/if}
 
 	{#if details.genres.length}
@@ -68,8 +72,17 @@
 		</div>
 	{/if}
 
+	{#if details.tagline || details.overview}
+		<svelte:element
+			this={sectionHeading}
+			class="mt-6 text-sm font-bold tracking-wide text-ink-muted uppercase"
+		>
+			Overview
+		</svelte:element>
+	{/if}
+
 	{#if details.tagline}
-		<p class="mt-4 text-sm text-ink-muted italic">“{details.tagline}”</p>
+		<p class="mt-2 text-sm text-ink-muted italic">“{details.tagline}”</p>
 	{/if}
 
 	{#if details.overview}
@@ -78,5 +91,5 @@
 
 	{@render actions?.()}
 
-	<CastRow cast={details.cast} title={details} {onSelectTitle} />
+	<CastRow cast={details.cast} title={details} {onSelectTitle} level={sectionHeading} />
 </div>

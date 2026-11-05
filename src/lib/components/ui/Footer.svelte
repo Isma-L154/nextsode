@@ -45,7 +45,7 @@
 			instead of the SvelteKit router, which is what a scheme the router cannot
 			navigate needs anyway.
 		-->
-		<nav aria-label="Footer" class="-my-2.5 flex flex-shrink-0 items-center gap-2">
+		<nav aria-label="Footer" class="-my-2.5 flex flex-shrink-0 flex-wrap items-center gap-x-2">
 			<a
 				href={CONTACT_MAILTO}
 				rel="external"
@@ -61,6 +61,13 @@
 				class="px-2 py-2.5 transition-colors duration-200 hover:text-ink"
 			>
 				Privacy
+			</a>
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the maker's own site, not a route of this app -->
+			<a
+				href="https://cloudils.com/"
+				class="px-2 py-2.5 transition-colors duration-200 hover:text-ink"
+			>
+				Cloudils
 			</a>
 		</nav>
 	</div>

@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
-import { getDetails } from '#lib/server/tmdb/index.js';
+import { getDetails, getRecommendations } from '#lib/server/tmdb/index.js';
+import { relatedTitles } from '#lib/domain/discoverability.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import { findSavedEntry, watchlistActions } from '#lib/server/watchlist/index.js';
 import { parseTitleSlug, titleSlug } from '#lib/format/title-url.js';
@@ -35,6 +36,13 @@ export const load: PageServerLoad = async (event) => {
 	// to watch" band uses it; everything else on the page is the same worldwide.
 	const { country } = await event.parent();
 
+	// Asked for alongside the details rather than after them. Best-effort: a
+	// failure costs the "More like this" row, never the page.
+	const recommendations = getRecommendations(type, tmdbId).catch((err) => {
+		console.error('TMDB recommendations failed:', err);
+		return [];
+	});
+
 	const details = await getDetails(type, tmdbId, country, null).catch((err) => {
 		console.error('TMDB details failed:', err);
 		// 502 rather than 404: the title may well exist, and telling a crawler it
@@ -60,7 +68,13 @@ export const load: PageServerLoad = async (event) => {
 	 */
 	const saved = event.locals.user ? await findSavedEntry(event.locals.user.id, tmdbId, type) : null;
 
-	return { details, saved };
+	/**
+	 * Rendered as plain links: the row is the path a crawler takes from one title
+	 * to the next, and the sitemap lists exactly these.
+	 */
+	const related = relatedTitles(await recommendations, details);
+
+	return { details, saved, related };
 };
 
 /**

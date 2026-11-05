@@ -49,6 +49,11 @@ interface TmdbDetailsRaw extends TmdbRawResult {
 	number_of_seasons?: number;
 	seasons?: TmdbSeasonRaw[];
 	status?: string;
+	next_episode_to_air?: {
+		season_number: number;
+		episode_number: number;
+		air_date?: string | null;
+	} | null;
 	backdrop_path?: string | null;
 	credits?: { cast?: TmdbCastRaw[] };
 	videos?: { results?: TmdbVideoRaw[] };
@@ -141,6 +146,13 @@ export async function getDetails(
 		seasons: seasons?.totalSeasons ?? raw.number_of_seasons ?? null,
 		airedSeasons: seasons?.airedSeasons ?? null,
 		upcomingSeason: seasons?.upcomingSeason ?? null,
+		nextEpisode: raw.next_episode_to_air
+			? {
+					season: raw.next_episode_to_air.season_number,
+					episode: raw.next_episode_to_air.episode_number,
+					airDate: raw.next_episode_to_air.air_date || null
+				}
+			: null,
 		episodeCounts: seasons?.episodeCounts ?? {},
 		season: wantsSeason
 			? normalizeSeasonEpisodes(raw[`season/${season as number}`], season as number)
