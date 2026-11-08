@@ -1,7 +1,6 @@
 import { redirect } from '@sveltejs/kit';
-import { generateCodeVerifier, generateState } from 'arctic';
+import { generateCodeVerifier, generateState } from '#lib/server/oauth-handshake.js';
 import {
-	GOOGLE_SCOPES,
 	HANDSHAKE_TTL_SECONDS,
 	STATE_COOKIE,
 	VERIFIER_COOKIE,
@@ -29,7 +28,7 @@ export const GET: RequestHandler = async (event) => {
 	const google = createGoogleClient(url.origin);
 	const state = generateState();
 	const codeVerifier = generateCodeVerifier();
-	const authorizationUrl = google.createAuthorizationURL(state, codeVerifier, GOOGLE_SCOPES);
+	const authorizationUrl = await google.createAuthorizationUrl(state, codeVerifier);
 
 	const options = {
 		path: '/',

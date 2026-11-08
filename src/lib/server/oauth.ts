@@ -1,16 +1,42 @@
-import { Google } from 'arctic';
+import * as v from 'valibot';
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_ORIGIN } from '$app/env/private';
+import { createCodeChallenge } from '#lib/server/oauth-handshake.js';
 
 /**
- * Google OAuth 2.0 / OpenID Connect wiring.
- *
+ * Google OAuth 2.0 / OpenID Connect sign-in: the authorization-code flow
+ * with PKCE, plus profile mapping.
  * Lives under `#lib/server`, so the client secret can never leak into the
- * browser bundle. `arctic` handles the protocol details (PKCE, token exchange);
- * everything here is configuration and profile mapping.
+ * browser bundle.
  */
 
 /** Scopes requested at sign-in: identity only, nothing else. */
-export const GOOGLE_SCOPES = ['openid', 'profile', 'email'];
+const GOOGLE_SCOPES = ['openid', 'profile', 'email'];
+const AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
+const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
+
+const tokenResponse = v.object({
+	access_token: v.pipe(v.string(), v.minLength(1), v.maxLength(4096))
+});
+/**
+ * The error code is allowlisted because it is copied into a message the
+ * callback logs.
+ */
+const tokenErrorResponse = v.object({
+	error: v.pipe(v.string(), v.regex(/^[a-z_]{1,64}$/))
+});
+
+/**
+ * The Google sign-in handshake, keeping token response details inside the
+ * client.
+ */
+export interface GoogleOAuthClient {
+	createAuthorizationUrl(state: string, codeVerifier: string): Promise<URL>;
+	/**
+	 * Resolves to the access token. Errors omit the secret, code, verifier and
+	 * response body because the callback logs them.
+	 */
+	exchangeCode(code: string, codeVerifier: string): Promise<string>;
+}
 
 /** Path Google redirects back to. Must be registered in the Google Console. */
 const CALLBACK_PATH = '/auth/google/callback';
@@ -39,7 +65,7 @@ export function isGoogleAuthConfigured(): boolean {
  * overrides it for deployments that sit behind a proxy rewriting the Host
  * header (in which case `url.origin` would be the internal address).
  */
-export function createGoogleClient(requestOrigin: string): Google {
+export function createGoogleClient(requestOrigin: string): GoogleOAuthClient {
 	const clientId = GOOGLE_CLIENT_ID;
 	const clientSecret = GOOGLE_CLIENT_SECRET;
 	if (!clientId || !clientSecret) {
@@ -47,7 +73,50 @@ export function createGoogleClient(requestOrigin: string): Google {
 	}
 
 	const origin = (OAUTH_ORIGIN || requestOrigin).replace(/\/$/, '');
-	return new Google(clientId, clientSecret, `${origin}${CALLBACK_PATH}`);
+	const redirectUri = `${origin}${CALLBACK_PATH}`;
+	return {
+		async createAuthorizationUrl(state, codeVerifier) {
+			const url = new URL(AUTHORIZATION_ENDPOINT);
+			url.search = new URLSearchParams({
+				response_type: 'code',
+				client_id: clientId,
+				redirect_uri: redirectUri,
+				state,
+				code_challenge_method: 'S256',
+				code_challenge: await createCodeChallenge(codeVerifier),
+				scope: GOOGLE_SCOPES.join(' ')
+			}).toString();
+			return url;
+		},
+		async exchangeCode(code, codeVerifier) {
+			const response = await fetch(TOKEN_ENDPOINT, {
+				method: 'POST',
+				headers: {
+					Accept: 'application/json',
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: new URLSearchParams({
+					grant_type: 'authorization_code',
+					client_id: clientId,
+					client_secret: clientSecret,
+					code,
+					redirect_uri: redirectUri,
+					code_verifier: codeVerifier
+				})
+			});
+
+			const raw: unknown = await response.json().catch(() => null);
+			if (response.status !== 200) {
+				const result = v.safeParse(tokenErrorResponse, raw);
+				const suffix = result.success ? ` (${result.output.error})` : '';
+				throw new Error(`Google token request failed with status ${response.status}${suffix}`);
+			}
+
+			const result = v.safeParse(tokenResponse, raw);
+			if (!result.success) throw new Error('Google token response is invalid');
+			return result.output.access_token;
+		}
+	};
 }
 
 /** The subset of Google's OIDC userinfo response that we actually use. */

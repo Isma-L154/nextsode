@@ -58,8 +58,8 @@ export const GET: RequestHandler = async (event) => {
 
 	try {
 		const google = createGoogleClient(url.origin);
-		const tokens = await google.validateAuthorizationCode(code, codeVerifier);
-		const profile = await fetchGoogleProfile(tokens.accessToken());
+		const accessToken = await google.exchangeCode(code, codeVerifier);
+		const profile = await fetchGoogleProfile(accessToken);
 
 		const userId = await upsertUser(profile);
 		const token = generateSessionToken();
