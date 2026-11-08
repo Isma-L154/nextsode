@@ -24,6 +24,13 @@ const tokenResponse = v.object({
 const tokenErrorResponse = v.object({
 	error: v.pipe(v.string(), v.regex(/^[a-z_]{1,64}$/))
 });
+const userinfoResponse = v.object({
+	sub: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+	email: v.nullish(v.pipe(v.string(), v.maxLength(320))),
+	name: v.nullish(v.string()),
+	given_name: v.nullish(v.string()),
+	picture: v.nullish(v.string())
+});
 
 /**
  * The Google sign-in handshake, keeping token response details inside the
@@ -130,51 +137,51 @@ export interface GoogleProfile {
 /**
  * Read the signed-in person's profile from Google's OIDC userinfo endpoint.
  *
- * We call the endpoint rather than decoding the `id_token` locally: the token
+ * We call the endpoint rather than decoding the `id_token` locally: the profile
  * arrives over a direct, authenticated TLS connection to Google, so this needs
  * no JWT signature verification and no key-rotation handling.
+ * Errors omit the access token and response body because the callback logs them.
  */
 export async function fetchGoogleProfile(accessToken: string): Promise<GoogleProfile> {
 	const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
 		headers: { Authorization: `Bearer ${accessToken}` }
 	});
 
-	if (!response.ok) {
+	if (response.status !== 200) {
 		throw new Error(`Google userinfo request failed with status ${response.status}`);
 	}
 
-	const raw = (await response.json()) as {
-		sub?: string;
-		email?: string;
-		name?: string;
-		given_name?: string;
-		picture?: string;
-	};
+	const raw: unknown = await response.json().catch(() => null);
+	const result = v.safeParse(userinfoResponse, raw);
+	if (!result.success) throw new Error('Google userinfo response is invalid');
+	const profile = result.output;
 
-	if (!raw.sub) throw new Error('Google userinfo response is missing "sub"');
+	// Fall back through available names so the account chip is never blank,
+	// even for profiles with unusual privacy settings. Cap this display label,
+	// never the account identifier.
+	const name = profile.name || profile.given_name || profile.email?.split('@')[0] || 'Anonymous';
 
 	return {
-		sub: raw.sub.slice(0, 128),
-		email: (raw.email ?? '').slice(0, 320),
-		// Fall back through the available name fields so the account chip is never
-		// blank, even for profiles with unusual privacy settings.
-		name: (raw.name || raw.given_name || raw.email?.split('@')[0] || 'Anonymous').slice(0, 120),
-		picture: safeAvatarUrl(raw.picture)
+		sub: profile.sub,
+		email: profile.email ?? '',
+		name: name.slice(0, 120),
+		picture: safeAvatarUrl(profile.picture)
 	};
 }
 
 /**
- * Accept an avatar URL only if it is plain `https`.
+ * Accept only a normalized HTTPS avatar URL of at most 500 characters.
  *
  * This value is stored and later rendered as an `<img src>`. Restricting the
  * scheme means a malformed or hostile response can never turn that attribute
  * into something other than an image fetch over TLS.
  */
-function safeAvatarUrl(value: string | undefined): string | null {
+function safeAvatarUrl(value: string | null | undefined): string | null {
 	if (!value) return null;
 	try {
 		const url = new URL(value);
-		return url.protocol === 'https:' ? url.toString().slice(0, 500) : null;
+		const normalized = url.toString();
+		return url.protocol === 'https:' && normalized.length <= 500 ? normalized : null;
 	} catch {
 		return null;
 	}
