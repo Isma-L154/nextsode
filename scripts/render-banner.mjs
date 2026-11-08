@@ -2,13 +2,13 @@ import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 /**
- * Renders the brand images from `docs/brand/banner.html`: the repository banner
- * and the site's card, which is its link preview and search result image.
+ * Renders the site's card, its link preview and search result image, from
+ * `docs/brand/banner.html`. Regenerate with `npm run brand`.
  *
- * They are drawn rather than painted: built from the same palette, typeface and
- * film mark the app itself uses, so they stay right when the brand moves. One
- * source with two variants, so the card cannot drift from the banner either.
- * Regenerate with `npm run brand`.
+ * It is drawn rather than painted: built from the same palette, typeface and
+ * film mark the app itself uses, so it stays right when the brand moves. The
+ * README banner (`docs/brand/banner.jpg`) is a painted promotional image and is
+ * replaced by hand.
  *
  * Deliberately contains no recognisable characters. Posters here are archetypes
  * — a spaceship, a crown, a silhouette in a hat — because "films and TV" reads
@@ -16,7 +16,6 @@ import { readFileSync } from 'node:fs';
  * repository is a legal problem rather than a design one.
  */
 const TARGETS = [
-	{ variant: 'banner', width: 1280, height: 640, path: 'docs/brand/banner.png' },
 	// The size `SITE_IMAGE` in src/lib/format/seo.ts declares.
 	{ variant: 'card', width: 1200, height: 630, path: 'static/og.png' }
 ];
