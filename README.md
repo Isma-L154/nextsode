@@ -39,6 +39,7 @@
 ```mermaid
 flowchart LR
     B["🖥️ Browser"] --> W["☁️ Cloudflare Worker<br/>SvelteKit app"]
+    W --> C[("⚡ Edge cache<br/>signed-out title pages")]
     W --> D[("🗄️ Turso")]
     W --> T["🎬 TMDB"]
     W --> G["🔑 Google OAuth"]
@@ -129,7 +130,7 @@ To deploy by hand: `npm run build && npx wrangler deploy`.
 - Sign-in uses OAuth 2.0 with PKCE and a `state` parameter; the database stores only a SHA-256 hash of the session token, so a dump cannot be replayed as a session.
 - Every watchlist read _and_ write is scoped by the session's user id — item ids travel through the browser, so knowing one is not enough to touch someone else's list.
 - Every form field, query string and path parameter goes through a strict schema; anything outside it is refused, never truncated or defaulted. Season targets are always resolved server-side.
-- Personal responses are `private, no-store`; only the public TMDB proxies are edge-cached.
+- Rendered pages reach the browser as `private, no-store`. At the edge, the Worker caches TMDB recommendation and person lookups for a day, and title pages rendered for signed-out visitors for 6 hours per country; a request with a session cookie never reads or fills the page cache.
 - Rate limits run inside the Worker: per IP on the public routes and, more tightly, on sign-in; per account on every write.
 
 ## License

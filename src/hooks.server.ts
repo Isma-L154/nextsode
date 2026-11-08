@@ -1,4 +1,5 @@
 import { sequence, type Handle } from '@sveltejs/kit/hooks';
+import { cacheSignedOutPages, type PageStore } from '#lib/server/page-cache.js';
 
 import {
 	SESSION_COOKIE,
@@ -138,6 +139,20 @@ const securityHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+function edgeCache(): PageStore | undefined {
+	// The DOM CacheStorage type hides the Workers-only default cache.
+	return typeof caches !== 'undefined'
+		? (caches as CacheStorage & { default: PageStore }).default
+		: undefined;
+}
+
 // The redirect runs first: a request to the old host has no business reaching
 // the database, and the response it gets carries no body to protect.
-export const handle = sequence(redirectRetiredHost, securityHeaders, authenticate);
+// The cache wraps securityHeaders: stored HTML keeps its build's hash-based CSP,
+// and the build version in the key retires both together on the next deploy.
+export const handle = sequence(
+	redirectRetiredHost,
+	cacheSignedOutPages(edgeCache),
+	securityHeaders,
+	authenticate
+);
