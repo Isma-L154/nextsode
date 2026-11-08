@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import Icon from '#lib/components/ui/Icon.svelte';
 	import { copyToClipboard } from '#lib/forms/feedback.js';
 
@@ -27,6 +27,12 @@
 	}
 
 	let { url, title, variant = 'full' }: Props = $props();
+
+	// A click before hydration has no handler and would be lost.
+	let mounted = $state(false);
+	onMount(() => {
+		mounted = true;
+	});
 
 	/** The URL, shown only once both quieter ways of handing it over have failed. */
 	let field = $state<HTMLInputElement | null>(null);
@@ -61,10 +67,11 @@
 
 <button
 	type="button"
+	disabled={!mounted}
 	onclick={share}
 	aria-label={`Share ${title}`}
 	class={[
-		'flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-surface-hi text-sm font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 ring-inset hover:bg-line hover:text-ink',
+		'flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-surface-hi text-sm font-semibold text-ink-muted ring-1 ring-line transition-colors duration-200 ring-inset enabled:hover:bg-line enabled:hover:text-ink disabled:cursor-progress disabled:opacity-60',
 		variant === 'full' ? 'mt-3 w-full py-3' : 'px-4'
 	]}
 >
