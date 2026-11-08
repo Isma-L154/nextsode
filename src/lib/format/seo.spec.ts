@@ -28,7 +28,7 @@ describe('serializeSchema', () => {
 describe('schemaScript', () => {
 	it('wraps the data in a typed script element', () => {
 		const html = schemaScript({ '@type': 'WebApplication' });
-		expect(html.startsWith('<script type="application/ld+json">')).toBe(true);
+		expect(html).toMatch(/^<script type="application\/ld\+json">/);
 		expect(html.endsWith('</script>')).toBe(true);
 	});
 
