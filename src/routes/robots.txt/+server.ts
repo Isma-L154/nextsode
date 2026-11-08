@@ -23,7 +23,26 @@ const RULES = [
 	'Disallow: /calendar/',
 	'# A shared list: no password, but sent to particular people. An indexed copy',
 	'# is one its owner cannot revoke.',
-	'Disallow: /share/'
+	'Disallow: /share/',
+	'',
+	'# Backlink and SEO crawlers send no visitors.',
+	'User-agent: SERankingBacklinksBot',
+	'User-agent: MJ12bot',
+	'User-agent: SemrushBot',
+	'User-agent: AhrefsBot',
+	'User-agent: DotBot',
+	'Disallow: /',
+	'',
+	'# Data miners send no visitors.',
+	'User-agent: panscient.com',
+	'Disallow: /',
+	'',
+	'# Crawlers collecting pages for model training send no visitors.',
+	'User-agent: GPTBot',
+	'User-agent: CCBot',
+	'User-agent: Amazonbot',
+	'User-agent: Bytespider',
+	'Disallow: /'
 ];
 
 export const GET: RequestHandler = ({ url, setHeaders }) => {
