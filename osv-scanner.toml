@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-02-07
+reason = "No patched release is available; only vite-plugin-svelte uses deepmerge to merge configuration objects from this repository, never attacker input. Re-check once sveltejs/vite-plugin-svelte#1415 ships."
