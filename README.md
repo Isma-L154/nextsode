@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Nextsode — never lose your place in a series" src="docs/brand/banner.png" width="880" />
+  <img alt="Nextsode — your next episode, right where you left off. Track films and TV, find where to watch." src="docs/brand/banner.jpg" width="880" />
 </p>
 
 <p align="center">
@@ -91,10 +91,11 @@ OAuth client ID for a Web application and add one redirect URI per environment �
 Other scripts: `npm run lint`, `npm run check`, `npm run test:unit`,
 `npm run test:e2e`.
 
-`npm run brand` regenerates the README banner and the site's link preview and
-search image (`static/og.png`) from `docs/brand/banner.html`. They are drawn
-rather than painted — same palette, typefaces and film mark as the app — so
-editing that file and re-running the script is how the images change.
+`npm run brand` regenerates the site's link preview and search image
+(`static/og.png`) from `docs/brand/banner.html`. It is drawn rather than
+painted — same palette, typefaces and film mark as the app — so editing that
+file and re-running the script is how it changes. The README banner,
+`docs/brand/banner.jpg`, is a painted promotional image and is replaced by hand.
 
 `npm run gen` regenerates `worker-configuration.d.ts` from the bindings in
 `wrangler.jsonc`. Run it when you add or change a binding, and commit the
