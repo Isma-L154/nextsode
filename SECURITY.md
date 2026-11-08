@@ -20,6 +20,10 @@ Include the affected URL or file, the steps to reproduce, and what an attacker g
 6. **Row Level Security: N/A at the database.** libSQL/Turso (SQLite) has no row-level policies. Isolation is enforced in the application instead: every read filters by the session's user (or, for shared lists and calendar feeds, by the owner's unguessable token), and every write matches the row id together with its owner (`ownedRow` in `src/lib/server/watchlist/owned.ts`). `queries.spec.ts` (reads) and `actions.spec.ts` (writes) prove, with two seeded accounts, that one account cannot read or change another's rows.
 7. **Content Security Policy: implemented.** SvelteKit generates the policy per response (`csp` in `vite.config.ts`). It sets `default-src 'self'`, a hash-based `script-src` and `style-src 'self'` with no `unsafe-inline` or `unsafe-eval`, `object-src 'none'`, `base-uri 'none'` and `frame-ancestors 'none'`. Server-rendered markup carries no inline style attribute; the one style attribute the client creates, on SvelteKit's route announcer, is allowed by its exact hash under `style-src-attr`, and `src/csp.spec.ts` fails if a SvelteKit update changes it. `src/hooks.server.ts` adds HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options` and `Permissions-Policy` to every response.
 
+## Continuous scanning
+
+Gitleaks checks committed secrets, semgrep checks vulnerable code patterns, osv-scanner checks vulnerable dependencies while honouring `osv-scanner.toml`, and zizmor checks unsafe workflow configuration. They run on every pull request and push to `main` through `.github/workflows/security.yml`. The `main` ruleset requires all four checks to pass before a pull request can merge.
+
 ## Dependency advisories
 
 - minimatch: overridden to `^11.0.1` for GHSA-g3hv-75wg-m249 because ESLint and typescript-eslint still depend on `^10`; remove the override once both depend on minimatch `>=11.0.1`.

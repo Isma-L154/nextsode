@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/Isma-L154/nextsode/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Isma-L154/nextsode/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://github.com/Isma-L154/nextsode/actions/workflows/security.yml"><img alt="Security" src="https://github.com/Isma-L154/nextsode/actions/workflows/security.yml/badge.svg" /></a>
   <img alt="SvelteKit 3" src="https://img.shields.io/badge/SvelteKit-3-6366f1?logo=svelte&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-6366f1?logo=typescript&logoColor=white" />
   <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-6366f1?logo=cloudflare&logoColor=white" />
@@ -132,6 +133,7 @@ To deploy by hand: `npm run build && npx wrangler deploy`.
 - Every form field, query string and path parameter goes through a strict schema; anything outside it is refused, never truncated or defaulted. Season targets are always resolved server-side.
 - Rendered pages reach the browser as `private, no-store`. At the edge, the Worker caches TMDB recommendation and person lookups for a day, and title pages rendered for signed-out visitors for 6 hours per country; a request with a session cookie never reads or fills the page cache.
 - Rate limits run inside the Worker: per IP on the public routes and, more tightly, on sign-in; per account on every write.
+- Every pull request and push to `main` runs gitleaks (full history), semgrep, osv-scanner and zizmor (`.github/workflows/security.yml`); a pull request cannot merge until they pass.
 
 ## License
 
