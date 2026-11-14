@@ -4,7 +4,9 @@
 	"compatibility_date": "2026-07-25",
 	"compatibility_flags": ["nodejs_compat"],
 	/**
-	 * `id` is the production Hyperdrive config, filled in at cutover.
+	 * `id` is the production Hyperdrive config `nextsode`: the Supabase direct
+	 * connection as `nextsode_app`, with query caching disabled so a revoked
+	 * session or share link stops working at once.
 	 *
 	 * `localConnectionString` is only read by `vite dev`, `wrangler dev`, the
 	 * tests and the build's analysis step, and is never deployed. It points at the
@@ -14,7 +16,7 @@
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
-			"id": "<HYPERDRIVE_ID>",
+			"id": "7ca1112b4a2f47bbaa021c5da7282ab4",
 			"localConnectionString": "postgres://nextsode_app:nextsode_app_test@127.0.0.1:54363/postgres"
 		}
 	],
