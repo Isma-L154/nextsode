@@ -89,7 +89,7 @@
 			<strong>Cloudflare</strong> — hosts and delivers the site, and as part of that processes connection
 			data such as IP addresses.
 		</li>
-		<li><strong>Turso</strong> — runs the database your list is stored in.</li>
+		<li><strong>Supabase</strong> — runs the database your list is stored in.</li>
 		<li>
 			<strong>TMDB</strong> — answers questions about films and shows. Those requests are made by our
 			server, not by your browser, and carry no identifier of yours.

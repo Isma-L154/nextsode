@@ -2,7 +2,22 @@
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "nextsode",
 	"compatibility_date": "2026-07-25",
-	"compatibility_flags": ["nodejs_als"],
+	"compatibility_flags": ["nodejs_compat"],
+	/**
+	 * `id` is the production Hyperdrive config, filled in at cutover.
+	 *
+	 * `localConnectionString` is only read by `vite dev`, `wrangler dev`, the
+	 * tests and the build's analysis step, and is never deployed. It points at the
+	 * local container from `npm run db:local`, whose credentials are public on
+	 * purpose; without it the platform proxy refuses to start anywhere but the edge.
+	 */
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "<HYPERDRIVE_ID>",
+			"localConnectionString": "postgres://nextsode_app:nextsode_app_test@127.0.0.1:54363/postgres"
+		}
+	],
 	"main": ".svelte-kit/cloudflare/_worker.js",
 	"assets": {
 		"binding": "ASSETS",

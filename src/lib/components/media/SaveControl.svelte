@@ -11,9 +11,6 @@
 	 * The one action the sheet exists to offer, in whichever of its three states
 	 * applies. They are mutually exclusive on purpose: the footer never shows a
 	 * control that cannot succeed.
-	 *
-	 * The whole snapshot is posted rather than an id alone, so the list renders
-	 * from its own row and never needs TMDB to draw a card.
 	 */
 	interface Props {
 		details: MediaDetails;
@@ -66,11 +63,6 @@
 		>
 			<input type="hidden" name="tmdbId" value={details.tmdbId} />
 			<input type="hidden" name="mediaType" value={details.mediaType} />
-			<input type="hidden" name="title" value={details.title} />
-			<input type="hidden" name="posterPath" value={details.posterPath ?? ''} />
-			<input type="hidden" name="releaseDate" value={details.releaseDate ?? ''} />
-			<input type="hidden" name="overview" value={details.overview ?? ''} />
-			<input type="hidden" name="voteAverage" value={details.voteAverage ?? ''} />
 			<button
 				type="submit"
 				disabled={busy}

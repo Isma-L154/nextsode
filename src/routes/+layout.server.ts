@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, request, url }) => {
 	return {
 		user: locals.user,
 		authAvailable: isGoogleAuthConfigured(),
-		toWatchCount: locals.user ? await countToWatch(locals.user.id) : 0,
+		toWatchCount: locals.user ? await countToWatch(locals.user) : 0,
 		country: resolveCountry(request),
 		/**
 		 * Where this deployment lives, for canonical URLs and share cards.

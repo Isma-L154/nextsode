@@ -35,12 +35,6 @@ export function normalizeShareScope(value: unknown): ShareScope {
 	return SHARE_SCOPES.includes(value as ShareScope) ? (value as ShareScope) : DEFAULT_SHARE_SCOPE;
 }
 
-/** Whether a scope includes titles in the given state. */
-export function scopeIncludes(scope: ShareScope, watched: boolean): boolean {
-	if (scope === 'both') return true;
-	return watched ? scope === 'watched' : scope === 'toWatch';
-}
-
 /**
  * The scope two checkboxes describe, or null when neither is ticked.
  *

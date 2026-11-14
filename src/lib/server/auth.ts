@@ -1,7 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Cookies } from '@sveltejs/kit';
 import { getDb } from './db';
-import { session, user } from './db/schema';
+import { session } from './db/schema';
+import { withUser } from './db/user';
+import type { Transaction } from './db';
 import type { SessionUser } from '#lib/types.js';
 
 /**
@@ -32,11 +34,20 @@ export function generateSessionToken(): string {
 }
 
 /** Create and persist a session for `userId`, returning its expiry. */
-export async function createSession(token: string, userId: string): Promise<Date> {
+export async function createSession(
+	token: string,
+	user: SessionUser,
+	transaction?: Transaction
+): Promise<Date> {
 	const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-	await getDb()
-		.insert(session)
-		.values({ id: await hashToken(token), userId, expiresAt });
+	const id = await hashToken(token);
+	await withUser(
+		user,
+		async (tx) => {
+			await tx.insert(session).values({ id, userId: user.id, expiresAt });
+		},
+		transaction
+	);
 	return expiresAt;
 }
 
@@ -47,56 +58,58 @@ export interface ValidatedSession {
 	renewed: boolean;
 }
 
+async function findSession(id: string) {
+	const result = await getDb().execute<{
+		user_id: string;
+		name: string;
+		email: string;
+		avatar_url: string | null;
+		expires_at: Date | string;
+	}>(sql`select * from nextsode.find_session(${id})`);
+	const row = result.rows[0];
+	if (!row) return null;
+	return {
+		user: { id: row.user_id, name: row.name, email: row.email, avatarUrl: row.avatar_url },
+		expiresAt: new Date(row.expires_at)
+	};
+}
+
 /**
- * Resolve a raw cookie token to its owner, or `null` when the session is
- * unknown or expired. Expired rows are deleted on sight so the table stays
- * small without needing a scheduled cleanup job.
+ * Resolve a cookie to its owner, deleting expired sessions on sight. Fresh
+ * sessions take one lookup; only expiry and renewal acquire a transaction.
  */
 export async function validateSession(token: string): Promise<ValidatedSession | null> {
 	const id = await hashToken(token);
-	const db = getDb();
-
-	const rows = await db
-		.select({
-			expiresAt: session.expiresAt,
-			id: user.id,
-			name: user.name,
-			email: user.email,
-			avatarUrl: user.avatarUrl
-		})
-		.from(session)
-		.innerJoin(user, eq(session.userId, user.id))
-		.where(eq(session.id, id))
-		.limit(1);
-
-	const row = rows[0];
-	if (!row) return null;
-
-	if (row.expiresAt.getTime() <= Date.now()) {
-		await db.delete(session).where(eq(session.id, id));
+	const found = await findSession(id);
+	if (!found) return null;
+	const { user, expiresAt } = found;
+	if (expiresAt.getTime() <= Date.now()) {
+		await withUser(user, async (db) => {
+			await db.delete(session).where(and(eq(session.id, id), eq(session.userId, user.id)));
+		});
 		return null;
 	}
-
-	let expiresAt = row.expiresAt;
-	let renewed = false;
 	if (expiresAt.getTime() - Date.now() < RENEW_AFTER_MS) {
-		expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-		await db.update(session).set({ expiresAt }).where(eq(session.id, id));
-		renewed = true;
+		const renewedUntil = new Date(Date.now() + SESSION_TTL_MS);
+		await withUser(user, async (db) => {
+			await db
+				.update(session)
+				.set({ expiresAt: renewedUntil })
+				.where(and(eq(session.id, id), eq(session.userId, user.id)));
+		});
+		return { user, expiresAt: renewedUntil, renewed: true };
 	}
-
-	return {
-		user: { id: row.id, name: row.name, email: row.email, avatarUrl: row.avatarUrl },
-		expiresAt,
-		renewed
-	};
+	return { user, expiresAt, renewed: false };
 }
 
 /** Revoke a single session (sign out on this device only). */
 export async function invalidateSession(token: string): Promise<void> {
-	await getDb()
-		.delete(session)
-		.where(eq(session.id, await hashToken(token)));
+	const id = await hashToken(token);
+	const found = await findSession(id);
+	if (!found) return;
+	await withUser(found.user, async (db) => {
+		await db.delete(session).where(and(eq(session.id, id), eq(session.userId, found.user.id)));
+	});
 }
 
 /**

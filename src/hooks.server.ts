@@ -1,4 +1,5 @@
 import { sequence, type Handle } from '@sveltejs/kit/hooks';
+import { closeDb } from '#lib/server/db/index.js';
 import { cacheSignedOutPages, type PageStore } from '#lib/server/page-cache.js';
 
 import {
@@ -139,6 +140,14 @@ const securityHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+const databaseLifecycle: Handle = async ({ event, resolve }) => {
+	try {
+		return await resolve(event);
+	} finally {
+		await closeDb(event);
+	}
+};
+
 function edgeCache(): PageStore | undefined {
 	// The DOM CacheStorage type hides the Workers-only default cache.
 	return typeof caches !== 'undefined'
@@ -154,5 +163,6 @@ export const handle = sequence(
 	redirectRetiredHost,
 	cacheSignedOutPages(edgeCache),
 	securityHeaders,
+	databaseLifecycle,
 	authenticate
 );

@@ -66,7 +66,7 @@ export const load: PageServerLoad = async (event) => {
 	 * that is actually available. Signed out there is nothing to look up, and
 	 * `SaveControl` renders the sign-in prompt instead.
 	 */
-	const saved = event.locals.user ? await findSavedEntry(event.locals.user.id, tmdbId, type) : null;
+	const saved = event.locals.user ? await findSavedEntry(event.locals.user, tmdbId, type) : null;
 
 	/**
 	 * Rendered as plain links: the row is the path a crawler takes from one title

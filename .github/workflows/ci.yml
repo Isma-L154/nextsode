@@ -19,12 +19,22 @@ jobs:
   quality:
     name: Lint, type-check & unit tests
     runs-on: ubuntu-latest
-    # SvelteKit validates the required variables when it loads server modules,
-    # in the tests and in the build's analysis step. Neither talks to TMDB or the
-    # database, so placeholders satisfy it.
     env:
-      DATABASE_URL: 'file::memory:'
+      TEST_DATABASE_URL: postgres://postgres:${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:54363/postgres
+      # Tests stub TMDB and the build makes no requests; validation only needs a value.
       TMDB_ACCESS_TOKEN: ci-placeholder
+    services:
+      postgres:
+        image: supabase/postgres:17.11.0.018
+        env:
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        ports:
+          - 54363:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,7 +107,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: 'file::memory:'
           TMDB_ACCESS_TOKEN: ci-placeholder
 
       - name: Deploy
@@ -105,6 +114,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           # No `command:` — the action's default `deploy` picks up wrangler.jsonc.
-          # Runtime secrets (TMDB, database, Google OAuth) already live in
+          # Runtime secrets (TMDB, Google OAuth) already live in
           # Cloudflare and are deliberately not managed from here.
           packageManager: npm

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { getDb } from '#lib/server/db/index.js';
-import { watchlistItem } from '#lib/server/db/schema.js';
+import { withUser } from '#lib/server/db/user.js';
+import { media, watchlistItem } from '#lib/server/db/schema.js';
 import { getRecommendations, getTrending } from '#lib/server/tmdb/index.js';
 import { watchlistActions } from '#lib/server/watchlist/index.js';
 import { mediaKey } from '#lib/domain/media.js';
@@ -11,7 +11,7 @@ import {
 	type RecommendationRail,
 	type SeedCandidate
 } from '#lib/domain/recommendations.js';
-import type { MediaResult, SavedEntry } from '#lib/types.js';
+import type { MediaResult, SavedEntry, SessionUser } from '#lib/types.js';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -25,7 +25,7 @@ import type { Actions, PageServerLoad } from './$types';
  * rows that decide which titles to ask about, and then fan out in parallel.
  */
 export const load: PageServerLoad = async ({ locals, request }) => {
-	const rows = loadSavedRows(locals.user?.id);
+	const rows = loadSavedRows(locals.user);
 	const today = dayNumber(new Date(), resolveTimeZone(request));
 
 	const [saved, trending, recommendations] = await Promise.all([
@@ -56,28 +56,30 @@ type SavedRow = SavedEntry & SeedCandidate;
  * Every saved row, in one query.
  *
  * Two features read it: the saved-state overlay, and seed selection. The columns
- * they need barely overlap, but a second round-trip to Turso to fetch four more
+ * they need barely overlap, but a second round-trip to the database to fetch four more
  * columns of rows already in hand would cost more than carrying them.
  */
-async function loadSavedRows(userId: string | undefined): Promise<SavedRow[]> {
-	if (!userId) return [];
-
-	return getDb()
-		.select({
-			id: watchlistItem.id,
-			tmdbId: watchlistItem.tmdbId,
-			mediaType: watchlistItem.mediaType,
-			title: watchlistItem.title,
-			watched: watchlistItem.watched,
-			seasonsSeen: watchlistItem.seasonsSeen,
-			episodesIntoSeason: watchlistItem.episodesIntoSeason,
-			totalSeasons: watchlistItem.totalSeasons,
-			airedSeasons: watchlistItem.airedSeasons,
-			addedAt: watchlistItem.addedAt,
-			watchedAt: watchlistItem.watchedAt
-		})
-		.from(watchlistItem)
-		.where(eq(watchlistItem.userId, userId));
+async function loadSavedRows(user: SessionUser | null): Promise<SavedRow[]> {
+	if (!user) return [];
+	return withUser(user, async (tx) =>
+		tx
+			.select({
+				id: watchlistItem.id,
+				tmdbId: media.tmdbId,
+				mediaType: media.mediaType,
+				title: media.title,
+				watched: watchlistItem.watched,
+				seasonsSeen: watchlistItem.seasonsSeen,
+				episodesIntoSeason: watchlistItem.episodesIntoSeason,
+				totalSeasons: media.totalSeasons,
+				airedSeasons: media.airedSeasons,
+				addedAt: watchlistItem.addedAt,
+				watchedAt: watchlistItem.watchedAt
+			})
+			.from(watchlistItem)
+			.innerJoin(media, eq(watchlistItem.mediaId, media.id))
+			.where(eq(watchlistItem.userId, user.id))
+	);
 }
 
 /**

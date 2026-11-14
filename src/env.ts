@@ -10,18 +10,10 @@ const required = (name: string) => (input: string | undefined) => {
 	return input;
 };
 
-/**
- * Google sign-in switches off cleanly when it is not configured, and a local
- * file database needs no auth token, so these fall back to an empty string.
- */
+/** Google sign-in switches off cleanly when it is not configured. */
 const optional = (input: string | undefined) => input ?? '';
 
 export const variables = defineEnvVars({
-	DATABASE_URL: {
-		description: 'libSQL/Turso URL, or `file:` for a local SQLite file',
-		schema: required('DATABASE_URL')
-	},
-	DATABASE_AUTH_TOKEN: { description: 'Required when DATABASE_URL is remote', schema: optional },
 	TMDB_ACCESS_TOKEN: {
 		description: 'TMDB v4 read access token (Bearer)',
 		schema: required('TMDB_ACCESS_TOKEN')

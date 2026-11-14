@@ -1,12 +1,9 @@
-import { desc, eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getDb } from './db';
-import { user, watchlistItem } from './db/schema';
-import {
-	normalizeShareScope,
-	ownerFirstName,
-	scopeIncludes,
-	type ShareScope
-} from '#lib/domain/share.js';
+import { user } from './db/schema';
+import { withUser } from './db/user';
+import type { SessionUser } from '#lib/types.js';
+import { ownerFirstName, type ShareScope } from '#lib/domain/share.js';
 
 /**
  * The shared list's server side: minting the token that reads it, and the one
@@ -42,12 +39,14 @@ export function generateShareToken(): string {
  * operation. Rolling over necessarily breaks every link already sent, which is
  * the entire point of offering it — and which the UI says out loud first.
  */
-export async function issueShareToken(userId: string, scope: ShareScope): Promise<string> {
+export async function issueShareToken(viewer: SessionUser, scope: ShareScope): Promise<string> {
 	const token = generateShareToken();
-	await getDb()
-		.update(user)
-		.set({ shareToken: token, shareScope: scope })
-		.where(eq(user.id, userId));
+	await withUser(viewer, async (tx) => {
+		await tx
+			.update(user)
+			.set({ shareToken: token, shareScope: scope })
+			.where(eq(user.id, viewer.id));
+	});
 	return token;
 }
 
@@ -58,8 +57,10 @@ export async function issueShareToken(userId: string, scope: ShareScope): Promis
  * break the URL they already sent, and somebody who narrows it wants the link
  * they sent to start showing less — which only works if it is the same link.
  */
-export async function setShareScope(userId: string, scope: ShareScope): Promise<void> {
-	await getDb().update(user).set({ shareScope: scope }).where(eq(user.id, userId));
+export async function setShareScope(viewer: SessionUser, scope: ShareScope): Promise<void> {
+	await withUser(viewer, async (tx) => {
+		await tx.update(user).set({ shareScope: scope }).where(eq(user.id, viewer.id));
+	});
 }
 
 /**
@@ -70,8 +71,10 @@ export async function setShareScope(userId: string, scope: ShareScope): Promise<
  * starts from the default rather than silently inheriting a wider setting made
  * for a different audience.
  */
-export async function revokeShareToken(userId: string): Promise<void> {
-	await getDb().update(user).set({ shareToken: null, shareScope: null }).where(eq(user.id, userId));
+export async function revokeShareToken(viewer: SessionUser): Promise<void> {
+	await withUser(viewer, async (tx) => {
+		await tx.update(user).set({ shareToken: null, shareScope: null }).where(eq(user.id, viewer.id));
+	});
 }
 
 /** Everything the public page renders, for the owner of one token. */
@@ -116,48 +119,46 @@ export interface SharedItem {
  * confirm that a URL was once real, which is exactly what somebody probing a
  * forwarded link is trying to learn.
  *
- * Both halves of the list are read even when only one is shared, because the
- * page states the counts either way — "12 to watch" is the context that makes a
+ * Counts describe both halves, while SQL returns titles only for the shared
+ * scope. The page states the counts either way — "12 to watch" is the context that makes a
  * shared list legible, and it is a number, not a title.
  */
 export async function loadSharedList(token: string): Promise<SharedList | null> {
 	if (!token) return null;
 
-	const db = getDb();
-	const [owner] = await db
-		.select({ id: user.id, name: user.name, scope: user.shareScope })
-		.from(user)
-		.where(eq(user.shareToken, token))
-		.limit(1);
-
-	if (!owner) return null;
-
-	const scope = normalizeShareScope(owner.scope);
-
-	const rows = await db
-		.select({
-			tmdbId: watchlistItem.tmdbId,
-			mediaType: watchlistItem.mediaType,
-			title: watchlistItem.title,
-			posterPath: watchlistItem.posterPath,
-			releaseDate: watchlistItem.releaseDate,
-			voteAverage: watchlistItem.voteAverage,
-			watched: watchlistItem.watched
-		})
-		.from(watchlistItem)
-		.where(eq(watchlistItem.userId, owner.id))
-		.orderBy(desc(watchlistItem.addedAt));
-
+	const rows = (
+		await getDb().execute<{
+			owner_name: string;
+			scope: ShareScope;
+			to_watch_count: string | number;
+			watched_count: string | number;
+			tmdb_id: number | null;
+			media_type: 'movie' | 'tv';
+			title: string;
+			poster_path: string | null;
+			release_date: string | null;
+			vote_average: number | null;
+			watched: boolean;
+		}>(
+			sql`select owner_name, scope, to_watch_count, watched_count, tmdb_id, media_type, title, poster_path, release_date::text, vote_average, watched from nextsode.shared_list(${token})`
+		)
+	).rows;
+	const first = rows[0];
+	if (!first) return null;
 	return {
-		ownerName: ownerFirstName(owner.name),
-		scope,
-		counts: {
-			toWatch: rows.filter((row) => !row.watched).length,
-			watched: rows.filter((row) => row.watched).length
-		},
-		// Filtered here rather than in SQL so the counts above describe the whole
-		// list from the same read. Lists are capped at 5000 rows and typically hold
-		// dozens; a second query to save a predicate would be the worse trade.
-		items: rows.filter((row) => scopeIncludes(scope, row.watched))
+		ownerName: ownerFirstName(first.owner_name),
+		scope: first.scope,
+		counts: { toWatch: Number(first.to_watch_count), watched: Number(first.watched_count) },
+		items: rows
+			.filter((row) => row.tmdb_id !== null)
+			.map((row) => ({
+				tmdbId: row.tmdb_id!,
+				mediaType: row.media_type,
+				title: row.title,
+				posterPath: row.poster_path,
+				releaseDate: row.release_date,
+				voteAverage: row.vote_average,
+				watched: row.watched
+			}))
 	};
 }

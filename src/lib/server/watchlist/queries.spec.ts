@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDatabase, seedUser, type TestDatabase } from '../test-db';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestDatabase, seedUser, seedItems, testUser, type TestDatabase } from '../test-db';
 import { watchlistItem } from '../db/schema';
 
 /**
@@ -22,15 +22,49 @@ const { countToWatch, loadWatchlist } = await import('./queries');
 
 /** Both accounts, each with rows, so an unscoped query has something to leak. */
 async function seedTwoAccounts() {
-	await seedUser(harness.db, { id: 'alice', googleId: 'g-alice', email: 'alice@example.test' });
-	await seedUser(harness.db, { id: 'bob', googleId: 'g-bob', email: 'bob@example.test' });
+	await seedUser(harness.admin, {
+		id: '00000000-0000-4000-8000-000000000001',
+		googleId: 'g-alice',
+		email: 'alice@example.test'
+	});
+	await seedUser(harness.admin, {
+		id: '00000000-0000-4000-8000-000000000002',
+		googleId: 'g-bob',
+		email: 'bob@example.test'
+	});
 
-	await harness.db.insert(watchlistItem).values([
-		{ userId: 'alice', tmdbId: 1, mediaType: 'movie', title: 'Alice One' },
-		{ userId: 'alice', tmdbId: 2, mediaType: 'tv', title: 'Alice Two' },
-		{ userId: 'bob', tmdbId: 3, mediaType: 'movie', title: 'Bob One' },
-		{ userId: 'bob', tmdbId: 4, mediaType: 'tv', title: 'Bob Two' },
-		{ userId: 'bob', tmdbId: 5, mediaType: 'movie', title: 'Bob Watched', watched: true }
+	await seedItems(harness.admin, [
+		{
+			userId: '00000000-0000-4000-8000-000000000001',
+			tmdbId: 1,
+			mediaType: 'movie',
+			title: 'Alice One'
+		},
+		{
+			userId: '00000000-0000-4000-8000-000000000001',
+			tmdbId: 2,
+			mediaType: 'tv',
+			title: 'Alice Two'
+		},
+		{
+			userId: '00000000-0000-4000-8000-000000000002',
+			tmdbId: 3,
+			mediaType: 'movie',
+			title: 'Bob One'
+		},
+		{
+			userId: '00000000-0000-4000-8000-000000000002',
+			tmdbId: 4,
+			mediaType: 'tv',
+			title: 'Bob Two'
+		},
+		{
+			userId: '00000000-0000-4000-8000-000000000002',
+			tmdbId: 5,
+			mediaType: 'movie',
+			title: 'Bob Watched',
+			watched: true
+		}
 	]);
 }
 
@@ -41,21 +75,27 @@ beforeEach(async () => {
 
 describe('loadWatchlist', () => {
 	it('returns only the asking account s titles', async () => {
-		const titles = (await loadWatchlist('alice')).map((row) => row.title).sort();
+		const titles = (await loadWatchlist(testUser('00000000-0000-4000-8000-000000000001')))
+			.map((row) => row.title)
+			.sort();
 
 		expect(titles).toEqual(['Alice One', 'Alice Two']);
 	});
 
 	it('returns nothing belonging to anyone else', async () => {
-		const rows = await loadWatchlist('alice');
+		const rows = await loadWatchlist(testUser('00000000-0000-4000-8000-000000000001'));
 
-		expect(rows.every((row) => row.userId === 'alice')).toBe(true);
+		expect(rows.every((row) => row.userId === '00000000-0000-4000-8000-000000000001')).toBe(true);
 		expect(rows.map((row) => row.title)).not.toContain('Bob Watched');
 	});
 
 	it('gives each account its own list, not a shared one', async () => {
-		const alice = (await loadWatchlist('alice')).map((r) => r.title);
-		const bob = (await loadWatchlist('bob')).map((r) => r.title);
+		const alice = (await loadWatchlist(testUser('00000000-0000-4000-8000-000000000001'))).map(
+			(r) => r.title
+		);
+		const bob = (await loadWatchlist(testUser('00000000-0000-4000-8000-000000000002'))).map(
+			(r) => r.title
+		);
 
 		expect(alice.some((t) => bob.includes(t))).toBe(false);
 		expect(bob).toHaveLength(3);
@@ -64,22 +104,26 @@ describe('loadWatchlist', () => {
 	it('answers an empty list for an id that owns nothing', async () => {
 		// Not an error and not everybody's rows: the shape a caller expects when a
 		// brand new account opens the page.
-		await seedUser(harness.db, { id: 'carol', googleId: 'g-carol', email: 'c@example.test' });
+		await seedUser(harness.admin, {
+			id: '00000000-0000-4000-8000-000000000003',
+			googleId: 'g-carol',
+			email: 'c@example.test'
+		});
 
-		expect(await loadWatchlist('carol')).toEqual([]);
+		expect(await loadWatchlist(testUser('00000000-0000-4000-8000-000000000003'))).toEqual([]);
 	});
 
 	it('answers an empty list for an id that does not exist at all', async () => {
 		// The value reaching here comes from a session lookup. If that ever returns
 		// something unexpected, the failure must be "no rows", never "all rows".
-		expect(await loadWatchlist('no-such-user')).toEqual([]);
-		expect(await loadWatchlist('')).toEqual([]);
+		expect(await loadWatchlist(testUser('00000000-0000-4000-8000-000000000004'))).toEqual([]);
+		await expect(loadWatchlist(testUser(''))).rejects.toMatchObject({ cause: { code: '22P02' } });
 	});
 });
 
 describe('countToWatch', () => {
 	it('counts only the asking account', async () => {
-		expect(await countToWatch('alice')).toBe(2);
+		expect(await countToWatch(testUser('00000000-0000-4000-8000-000000000001'))).toBe(2);
 	});
 
 	/**
@@ -89,18 +133,22 @@ describe('countToWatch', () => {
 	 * would read 3.
 	 */
 	it('leaves watched titles out, and still only counts one account', async () => {
-		expect(await countToWatch('bob')).toBe(2);
+		expect(await countToWatch(testUser('00000000-0000-4000-8000-000000000002'))).toBe(2);
 	});
 
 	it('reaches zero for an account that has watched everything', async () => {
-		await harness.db.update(watchlistItem).set({ watched: true });
+		await harness.admin.update(watchlistItem).set({ watched: true });
 
 		// Not "no rows" — the list is still full, there is just nothing left to do
 		// with it, and the badge disappears rather than showing a stale number.
-		expect(await countToWatch('alice')).toBe(0);
+		expect(await countToWatch(testUser('00000000-0000-4000-8000-000000000001'))).toBe(0);
 	});
 
 	it('counts zero for an unknown id rather than everything', async () => {
-		expect(await countToWatch('no-such-user')).toBe(0);
+		expect(await countToWatch(testUser('00000000-0000-4000-8000-000000000004'))).toBe(0);
 	});
+});
+
+afterEach(async () => {
+	await harness?.close();
 });

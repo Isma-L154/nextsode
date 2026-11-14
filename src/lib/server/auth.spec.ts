@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { createTestDatabase, seedUser, type TestDatabase } from './test-db';
-import { session } from './db/schema';
+import { createTestDatabase, seedUser, testUser, type TestDatabase } from './test-db';
+import { session, user } from './db/schema';
 
 /**
  * Sessions, against a real database.
@@ -27,12 +27,12 @@ const DAY = 86_400_000;
 const TTL = 30 * DAY;
 
 /** Every stored session row, to inspect what a write actually left behind. */
-const storedRows = () => harness.db.select().from(session);
+const storedRows = () => harness.admin.select().from(session);
 
 /** Move a session's expiry to a chosen distance from now. */
 async function expireIn(token: string, ms: number) {
 	const [row] = await storedRows();
-	await harness.db
+	await harness.admin
 		.update(session)
 		.set({ expiresAt: new Date(Date.now() + ms) })
 		.where(eq(session.id, row.id));
@@ -41,7 +41,11 @@ async function expireIn(token: string, ms: number) {
 
 beforeEach(async () => {
 	harness = await createTestDatabase();
-	await seedUser(harness.db, { id: 'alice', googleId: 'g-alice', email: 'alice@example.test' });
+	await seedUser(harness.admin, {
+		id: '00000000-0000-4000-8000-000000000001',
+		googleId: 'g-alice',
+		email: 'alice@example.test'
+	});
 });
 
 describe('generateSessionToken', () => {
@@ -62,16 +66,19 @@ describe('createSession', () => {
 	 */
 	it('stores a hash, never the token itself', async () => {
 		const token = generateSessionToken();
-		await createSession(token, 'alice');
+		await createSession(token, testUser('00000000-0000-4000-8000-000000000001'));
 
 		const [row] = await storedRows();
 		expect(row.id).not.toBe(token);
 		expect(row.id).toMatch(/^[0-9a-f]{64}$/);
-		expect(row.userId).toBe('alice');
+		expect(row.userId).toBe('00000000-0000-4000-8000-000000000001');
 	});
 
 	it('expires thirty days out', async () => {
-		const expiresAt = await createSession(generateSessionToken(), 'alice');
+		const expiresAt = await createSession(
+			generateSessionToken(),
+			testUser('00000000-0000-4000-8000-000000000001')
+		);
 		expect(expiresAt.getTime() - Date.now()).toBeGreaterThan(TTL - 60_000);
 		expect(expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(TTL);
 	});
@@ -80,12 +87,12 @@ describe('createSession', () => {
 describe('validateSession', () => {
 	it('resolves a live token to its owner', async () => {
 		const token = generateSessionToken();
-		await createSession(token, 'alice');
+		await createSession(token, testUser('00000000-0000-4000-8000-000000000001'));
 
 		const result = await validateSession(token);
 
 		expect(result?.user).toEqual({
-			id: 'alice',
+			id: '00000000-0000-4000-8000-000000000001',
 			name: 'Test User',
 			email: 'alice@example.test',
 			avatarUrl: null
@@ -103,15 +110,15 @@ describe('validateSession', () => {
 	 */
 	it('refuses a session whose account is gone', async () => {
 		const token = generateSessionToken();
-		await createSession(token, 'alice');
-		await harness.client.execute("delete from user where id = 'alice'");
+		await createSession(token, testUser('00000000-0000-4000-8000-000000000001'));
+		await harness.admin.delete(user).where(eq(user.id, testUser().id));
 
 		expect(await validateSession(token)).toBeNull();
 	});
 
 	it('refuses an expired session and clears the row on sight', async () => {
 		const token = generateSessionToken();
-		await createSession(token, 'alice');
+		await createSession(token, testUser('00000000-0000-4000-8000-000000000001'));
 		await expireIn(token, -1000);
 
 		expect(await validateSession(token)).toBeNull();
@@ -125,10 +132,15 @@ describe('validateSession', () => {
 	 */
 	it('leaves a fresh session alone', async () => {
 		const token = generateSessionToken();
-		await createSession(token, 'alice');
+		await createSession(token, testUser('00000000-0000-4000-8000-000000000001'));
 		const [before] = await storedRows();
+		const transaction = vi.spyOn(harness.db, 'transaction');
+		const execute = vi.spyOn(harness.db, 'execute');
 
 		const result = await validateSession(token);
+
+		expect(transaction).not.toHaveBeenCalled();
+		expect(execute).toHaveBeenCalledOnce();
 
 		expect(result?.renewed).toBe(false);
 		const [after] = await storedRows();
@@ -137,7 +149,7 @@ describe('validateSession', () => {
 
 	it('extends a session past its halfway point', async () => {
 		const token = generateSessionToken();
-		await createSession(token, 'alice');
+		await createSession(token, testUser('00000000-0000-4000-8000-000000000001'));
 		await expireIn(token, DAY);
 
 		const result = await validateSession(token);
@@ -145,9 +157,6 @@ describe('validateSession', () => {
 		expect(result?.renewed).toBe(true);
 		const [after] = await storedRows();
 		expect(after.expiresAt.getTime() - Date.now()).toBeGreaterThan(TTL - 60_000);
-		// Within a second of each other, not equal: the column is a unix timestamp
-		// in seconds, so the stored value is the returned one with its milliseconds
-		// dropped. The cookie therefore outlives the row by under a second.
 		expect(result?.expiresAt.getTime() ?? 0).toBeGreaterThanOrEqual(after.expiresAt.getTime());
 		expect((result?.expiresAt.getTime() ?? 0) - after.expiresAt.getTime()).toBeLessThan(1000);
 	});
@@ -157,13 +166,27 @@ describe('invalidateSession', () => {
 	it('revokes only the session it was given', async () => {
 		const mine = generateSessionToken();
 		const other = generateSessionToken();
-		await createSession(mine, 'alice');
-		await createSession(other, 'alice');
+		await createSession(mine, testUser('00000000-0000-4000-8000-000000000001'));
+		await createSession(other, testUser('00000000-0000-4000-8000-000000000001'));
 
 		await invalidateSession(mine);
 
 		expect(await validateSession(mine)).toBeNull();
 		expect(await validateSession(other)).not.toBeNull();
+	});
+
+	it('deletes a session due for renewal without renewing it first', async () => {
+		const token = generateSessionToken();
+		await createSession(token, testUser());
+		await expireIn(token, DAY);
+		const transaction = vi.spyOn(harness.db, 'transaction');
+		const execute = vi.spyOn(harness.db, 'execute');
+
+		await invalidateSession(token);
+
+		expect(transaction).toHaveBeenCalledOnce();
+		expect(execute).toHaveBeenCalledOnce();
+		expect(await storedRows()).toEqual([]);
 	});
 
 	it('is silent about a token that does not exist', async () => {
@@ -176,4 +199,9 @@ describe('SESSION_COOKIE', () => {
 	it('is the name the browser already holds', () => {
 		expect(SESSION_COOKIE).toBe('wl_session');
 	});
+});
+
+afterEach(async () => {
+	vi.restoreAllMocks();
+	await harness?.close();
 });

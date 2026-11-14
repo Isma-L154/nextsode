@@ -1,7 +1,7 @@
 import { fail, type Actions } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { and, eq, isNotNull, lt } from 'drizzle-orm';
-import { getDb } from '../../db';
+import { withUser } from '../../db/user';
 import { user, watchlistItem } from '../../db/schema';
 import { INVALID_FORM, readForm } from '../../validation';
 import { DELETION_WINDOWS, type DeletionWindow } from '#lib/domain/deletion.js';
@@ -42,45 +42,43 @@ export const settingsActions = {
 	 */
 	setAutoDelete: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
+		const viewer = locals.user;
 		const input = await readForm(request, autoDeleteForm);
 		if (!input) return fail(400, INVALID_FORM);
 		const { days } = input;
+		return withUser(viewer, async (db) => {
+			await db.update(user).set({ autoDeleteDays: days }).where(eq(user.id, viewer.id));
 
-		const db = getDb();
-		await db.update(user).set({ autoDeleteDays: days }).where(eq(user.id, locals.user.id));
+			if (days !== null) {
+				const now = new Date();
+				await db
+					.update(watchlistItem)
+					.set({ watchedAt: now })
+					.where(
+						and(
+							eq(watchlistItem.userId, viewer.id),
+							eq(watchlistItem.watched, true),
+							isNotNull(watchlistItem.watchedAt),
+							lt(watchlistItem.watchedAt, new Date(now.getTime() - days * 86_400_000))
+						)
+					);
+			}
 
-		if (days !== null) {
-			const now = new Date();
-			await db
-				.update(watchlistItem)
-				.set({ watchedAt: now })
-				.where(
-					and(
-						eq(watchlistItem.userId, locals.user.id),
-						eq(watchlistItem.watched, true),
-						isNotNull(watchlistItem.watchedAt),
-						lt(watchlistItem.watchedAt, new Date(now.getTime() - days * 86_400_000))
-					)
-				);
-		}
-
-		return { autoDeleteDays: days };
+			return { autoDeleteDays: days };
+		});
 	},
 
 	/** Reset the deletion countdown for a title without changing anything else. */
 	keepLonger: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
+		const viewer = locals.user;
 		const input = await readForm(request, rowForm);
 		if (!input) return fail(400, INVALID_FORM);
 		const { id } = input;
+		return withUser(viewer, async (db) => {
+			await db.update(watchlistItem).set({ watchedAt: new Date() }).where(ownedRow(id, viewer.id));
 
-		await getDb()
-			.update(watchlistItem)
-			.set({ watchedAt: new Date() })
-			.where(ownedRow(id, locals.user.id));
-
-		return { kept: true };
+			return { kept: true };
+		});
 	}
 } satisfies Actions;

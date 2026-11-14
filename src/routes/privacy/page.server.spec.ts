@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
-import { createTestDatabase, seedUser, type TestDatabase } from '#lib/server/test-db.js';
-import { session, watchlistItem } from '#lib/server/db/schema.js';
+import {
+	createTestDatabase,
+	seedUser,
+	seedItems,
+	selectWatchlist,
+	type TestDatabase
+} from '#lib/server/test-db.js';
+import { session } from '#lib/server/db/schema.js';
 import * as schema from '#lib/server/db/schema.js';
 
 /**
@@ -40,22 +46,34 @@ beforeEach(async () => {
 	harness = await createTestDatabase();
 	cleared.length = 0;
 
-	await seedUser(harness.db);
-	await harness.db.insert(session).values({
-		id: 'session-hash',
-		userId: 'user-1',
+	await seedUser(harness.admin);
+	await harness.admin.insert(session).values({
+		id: 'da2787b5a4e142da71ea26fa6fa1ee8d1960c85301b9355e1ff8995d7f44650f',
+		userId: '00000000-0000-4000-8000-000000000001',
 		expiresAt: new Date(Date.now() + 86_400_000)
 	});
-	await harness.db.insert(watchlistItem).values([
-		{ id: 'a', userId: 'user-1', tmdbId: 1, mediaType: 'tv', title: 'Silo' },
-		{ id: 'b', userId: 'user-1', tmdbId: 2, mediaType: 'movie', title: 'Arrival' }
+	await seedItems(harness.admin, [
+		{
+			id: '00000000-0000-4000-8000-000000000009',
+			userId: '00000000-0000-4000-8000-000000000001',
+			tmdbId: 1,
+			mediaType: 'tv',
+			title: 'Silo'
+		},
+		{
+			id: '00000000-0000-4000-8000-000000000010',
+			userId: '00000000-0000-4000-8000-000000000001',
+			tmdbId: 2,
+			mediaType: 'movie',
+			title: 'Arrival'
+		}
 	]);
 });
 
 const rows = async () => ({
-	users: (await harness.db.select().from(schema.user)).length,
-	items: (await harness.db.select().from(watchlistItem)).length,
-	sessions: (await harness.db.select().from(session)).length
+	users: (await harness.admin.select().from(schema.user)).length,
+	items: (await selectWatchlist(harness.admin)).length,
+	sessions: (await harness.admin.select().from(session)).length
 });
 
 describe('deleteAccount', () => {
@@ -63,29 +81,46 @@ describe('deleteAccount', () => {
 		expect(await rows()).toEqual({ users: 1, items: 2, sessions: 1 });
 
 		// The action signals completion by throwing a redirect.
-		await expect(deleteAccount('user-1')).rejects.toMatchObject({ status: 303 });
+		await expect(deleteAccount('00000000-0000-4000-8000-000000000001')).rejects.toMatchObject({
+			status: 303
+		});
 
 		expect(await rows()).toEqual({ users: 0, items: 0, sessions: 0 });
+		expect(await harness.admin.select().from(schema.media)).toHaveLength(2);
 	});
 
 	it('clears the session cookie, so no token outlives the row', async () => {
-		await expect(deleteAccount('user-1')).rejects.toMatchObject({ status: 303 });
+		await expect(deleteAccount('00000000-0000-4000-8000-000000000001')).rejects.toMatchObject({
+			status: 303
+		});
 		expect(cleared).toEqual(['wl_session']);
 	});
 
 	it('leaves other accounts untouched', async () => {
-		await seedUser(harness.db, { id: 'user-2', googleId: 'google-2', email: 'b@e.com' });
-		await harness.db
-			.insert(watchlistItem)
-			.values({ id: 'c', userId: 'user-2', tmdbId: 3, mediaType: 'tv', title: 'Andor' });
+		await seedUser(harness.admin, {
+			id: '00000000-0000-4000-8000-000000000002',
+			googleId: 'google-2',
+			email: 'b@e.com'
+		});
+		await seedItems(harness.admin, {
+			id: '00000000-0000-4000-8000-000000000011',
+			userId: '00000000-0000-4000-8000-000000000002',
+			tmdbId: 3,
+			mediaType: 'tv',
+			title: 'Andor'
+		});
 
-		await expect(deleteAccount('user-1')).rejects.toMatchObject({ status: 303 });
+		await expect(deleteAccount('00000000-0000-4000-8000-000000000001')).rejects.toMatchObject({
+			status: 303
+		});
 
 		expect(await rows()).toEqual({ users: 1, items: 1, sessions: 0 });
 	});
 
 	it('does nothing unless the confirmation box was ticked', async () => {
-		expect(await deleteAccount('user-1', {})).toMatchObject({ status: 400 });
+		expect(await deleteAccount('00000000-0000-4000-8000-000000000001', {})).toMatchObject({
+			status: 400
+		});
 		expect(await rows()).toEqual({ users: 1, items: 2, sessions: 1 });
 	});
 
@@ -93,4 +128,8 @@ describe('deleteAccount', () => {
 		expect(await deleteAccount(null)).toMatchObject({ status: 401 });
 		expect(await rows()).toEqual({ users: 1, items: 2, sessions: 1 });
 	});
+});
+
+afterEach(async () => {
+	await harness?.close();
 });

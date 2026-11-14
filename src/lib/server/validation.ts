@@ -11,7 +11,7 @@ import * as v from 'valibot';
  * default — would store something nobody sent.
  */
 
-/** Big enough for the largest form here (a save with its overview), no more. */
+/** Bound the body even when a client forges fields outside the form schema. */
 const MAX_FORM_BYTES = 32 * 1024;
 
 type FieldsSchema = v.GenericSchema;
@@ -91,8 +91,8 @@ export async function readForm<T extends FieldsSchema>(
 /** Answered for any form body that `readForm` refuses. */
 export const INVALID_FORM = { message: 'That request was not valid.' };
 
-/** An id this app generated: never empty, and bounded. */
-export const rowId = v.pipe(v.string(), v.minLength(1), v.maxLength(64));
+/** Refuse malformed UUIDs before Postgres attempts to cast a row predicate. */
+export const rowId = v.pipe(v.string(), v.uuid());
 
 /** A TMDB id, written the one way an id is written. */
 export const positiveInt = v.pipe(v.string(), v.regex(/^[1-9]\d{0,8}$/), v.transform(Number));

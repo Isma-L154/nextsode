@@ -1,1 +1,0 @@
-ALTER TABLE `watchlist_item` ADD `episodes_into_season` integer DEFAULT 0 NOT NULL;

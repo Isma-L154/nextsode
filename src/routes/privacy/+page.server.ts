@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { eq } from 'drizzle-orm';
-import { getDb } from '#lib/server/db/index.js';
+import { withUser } from '#lib/server/db/user.js';
 import { user } from '#lib/server/db/schema.js';
 import { deleteSessionCookie } from '#lib/server/auth.js';
 import { INVALID_FORM, readForm } from '#lib/server/validation.js';
@@ -27,7 +27,10 @@ export const actions = {
 		if (!locals.user) return fail(401, { message: 'Please sign in first.' });
 		if (!(await readForm(request, deleteAccountForm))) return fail(400, INVALID_FORM);
 
-		await getDb().delete(user).where(eq(user.id, locals.user.id));
+		const viewer = locals.user;
+		await withUser(viewer, async (tx) => {
+			await tx.delete(user).where(eq(user.id, viewer.id));
+		});
 
 		// The row backing this cookie is already gone; clearing it stops the
 		// browser presenting a token that can no longer resolve to anybody.

@@ -41,7 +41,8 @@
 flowchart LR
     B["🖥️ Browser"] --> W["☁️ Cloudflare Worker<br/>SvelteKit app"]
     W --> C[("⚡ Edge cache<br/>signed-out title pages")]
-    W --> D[("🗄️ Turso")]
+    W --> H["Hyperdrive"]
+    H --> D[("Supabase Postgres<br/>schema nextsode, RLS")]
     W --> T["🎬 TMDB"]
     W --> G["🔑 Google OAuth"]
 ```
@@ -55,29 +56,40 @@ Two conventions carry most of the codebase: decision logic lives in
 deleting expired titles) runs on page load rather than on a timer, so there is
 no cron job to operate.
 
-**Stack:** SvelteKit 3 · Svelte 5 · TypeScript · Tailwind 4 · Drizzle + Turso (libSQL) ·
+**Stack:** SvelteKit 3 · Svelte 5 · TypeScript · Tailwind 4 · Drizzle + Supabase Postgres via Hyperdrive ·
 Cloudflare Workers
 
 ## Running locally
 
 Needs Node 24+, a free [TMDB](https://www.themoviedb.org/settings/api) token and
-a Google OAuth client.
+a Google OAuth client, and Docker for local Postgres.
 
 ```bash
 npm install
 cp .env.example .env    # fill in the values below
-npm run db:migrate
+npm run db:local        # reads .env, starts Postgres and sets the local app-role password
+npm run db:migrate      # owner connection; reviewed migrations only
 npm run dev             # http://localhost:5173
 ```
 
-| Variable               | Description                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| `TMDB_ACCESS_TOKEN`    | TMDB v4 **API Read Access Token** (Bearer).                                        |
-| `DATABASE_URL`         | `file:local.db` locally, or a `libsql://…turso.io` URL in production.              |
-| `DATABASE_AUTH_TOKEN`  | Turso auth token. Leave empty for the local file database.                         |
-| `GOOGLE_CLIENT_ID`     | OAuth 2.0 client ID.                                                               |
-| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret.                                                           |
-| `OAUTH_ORIGIN`         | _Optional._ Public origin for the redirect URI; derived from the request if unset. |
+The app reaches that container as `nextsode_app` through the Hyperdrive
+binding's `localConnectionString` in `wrangler.jsonc`, which `vite dev`,
+`wrangler dev`, the tests and the build use and a deploy never does.
+`db:local` reads the owner credentials and port from `DATABASE_URL` in `.env`,
+and the app-role password from that Wrangler binding. Create `.env` before
+starting the container; the script loads it automatically.
+
+| Variable               | Description                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| `TMDB_ACCESS_TOKEN`    | TMDB v4 **API Read Access Token** (Bearer).                                                      |
+| `DATABASE_URL`         | Local Docker owner credentials and port for `db:local`; schema owner connection for drizzle-kit. |
+| `TEST_DATABASE_URL`    | Owner connection for Vitest; the same local container, with a fresh database per test.           |
+| `GOOGLE_CLIENT_ID`     | OAuth 2.0 client ID.                                                                             |
+| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret.                                                                         |
+| `OAUTH_ORIGIN`         | _Optional._ Public origin for the redirect URI; derived from the request if unset.               |
+| `TURSO_DATABASE_URL`   | Cutover only: legacy source connection for the copy script.                                      |
+| `TURSO_AUTH_TOKEN`     | Cutover only: legacy source token for the copy script.                                           |
+| `TARGET_DATABASE_URL`  | Cutover only: target owner connection for the copy script.                                       |
 
 > ⚠️ `.env` is git-ignored and must never be committed.
 
@@ -87,6 +99,15 @@ OAuth client ID for a Web application and add one redirect URI per environment �
 `http://localhost:5173/auth/google/callback` and
 `https://<your-domain>/auth/google/callback`. Only `openid`, `profile` and
 `email` are requested, and no Google tokens are stored.
+
+Server tests use `supabase/postgres:17.11.0.018`, the same image as CI. Run
+`npm run db:local` first and export `TEST_DATABASE_URL` from `.env` in the shell
+running Vitest. The server setup fails clearly when it is absent; tests create
+and drop isolated databases from a migrated `nextsode_template`, connecting as
+`nextsode_app` with the same password as the dev server.
+
+Schema changes use `npm run db:generate` and `npm run db:migrate`;
+`npm run db:studio` opens the owner connection for inspection.
 
 Other scripts: `npm run lint`, `npm run check`, `npm run test:unit`,
 `npm run test:e2e`.
@@ -110,16 +131,19 @@ Pushes to `main` deploy to Cloudflare automatically once CI passes. That needs
 one repository secret, `CLOUDFLARE_API_TOKEN` (Cloudflare → My Profile → API
 Tokens → template _Edit Cloudflare Workers_).
 
+The Worker uses Drizzle with node-postgres through Hyperdrive. Each request
+creates a pool with at most one connection and closes it after the response.
+
 First-time setup:
 
-```bash
-turso db create nextsode   # put the URL + token in .env, then:
-npm run db:migrate           # apply the schema to the remote database
+1. Apply `npm run db:migrate` with `DATABASE_URL` set to the Supabase schema owner, `postgres`. Migrations use only `nextsode`, including the migrations journal; they do not touch `public` or Supabase-managed schemas.
+2. Set `nextsode_app`'s password and `LOGIN` outside migrations, using the SQL editor. It must remain a non-owner role without `BYPASSRLS` or superuser privileges. Enable SSL enforcement on the project.
+3. Create a Hyperdrive configuration in Cloudflare with that app role, disable its query caching so session and link revocation take effect immediately, and replace `<HYPERDRIVE_ID>` in `wrangler.jsonc` at cutover. The driver needs the `nodejs_compat` flag already configured there.
+4. Stop writes to the old deployment and run `node scripts/copy-turso-to-postgres.ts` once. Supply `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and `TARGET_DATABASE_URL` (owner) through environment variables. The script writes no files, copies in one transaction, refuses an existing target account, preserves session hashes and prints source and target counts before committing. Do a local rehearsal and inspect sampled rows before the production cutover.
+5. Set the production secrets in Cloudflare; database credentials belong to Hyperdrive, not Worker secrets:
 
-# Production secrets are not read from .env:
+```bash
 npx wrangler secret put TMDB_ACCESS_TOKEN
-npx wrangler secret put DATABASE_URL
-npx wrangler secret put DATABASE_AUTH_TOKEN
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
@@ -130,7 +154,7 @@ To deploy by hand: `npm run build && npx wrangler deploy`.
 
 - Secrets live only in `src/lib/server/*`, which SvelteKit guarantees is never bundled for the client.
 - Sign-in uses OAuth 2.0 with PKCE and a `state` parameter; the database stores only a SHA-256 hash of the session token, so a dump cannot be replayed as a session.
-- Every watchlist read _and_ write is scoped by the session's user id — item ids travel through the browser, so knowing one is not enough to touch someone else's list.
+- Postgres RLS enforces a transaction-local identity on a non-owner role. Every watchlist read _and_ write also filters by the session's user id — item ids travel through the browser, so knowing one is not enough to touch someone else's list.
 - Every form field, query string and path parameter goes through a strict schema; anything outside it is refused, never truncated or defaulted. Season targets are always resolved server-side.
 - Rendered pages reach the browser as `private, no-store`. At the edge, the Worker caches TMDB recommendation and person lookups for a day, and title pages rendered for signed-out visitors for 6 hours per country; a request with a session cookie never reads or fills the page cache.
 - Rate limits run inside the Worker: per IP on the public routes and, more tightly, on sign-in; per account on every write.

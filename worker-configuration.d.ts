@@ -6,8 +6,7 @@ interface __BaseEnv_Env {
 	AUTH_RATE_LIMIT: RateLimit;
 	ACCOUNT_RATE_LIMIT: RateLimit;
 	ASSETS: Fetcher;
-	DATABASE_URL: string;
-	DATABASE_AUTH_TOKEN: string;
+	HYPERDRIVE: Hyperdrive;
 	TMDB_ACCESS_TOKEN: string;
 	GOOGLE_CLIENT_ID: string;
 	GOOGLE_CLIENT_SECRET: string;

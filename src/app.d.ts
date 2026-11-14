@@ -9,6 +9,11 @@ declare global {
 			user: SessionUser | null;
 		}
 
+		interface Platform {
+			env: Env;
+			ctx: ExecutionContext;
+		}
+
 		// interface Error {}
 		// interface PageData {}
 		// interface PageState {}
