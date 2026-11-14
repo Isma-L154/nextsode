@@ -1,15 +1,13 @@
 import { redirect } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { eq, ne, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { createSession, generateSessionToken, setSessionCookie } from '#lib/server/auth.js';
 import { getDb } from '#lib/server/db/index.js';
-import { user, watchlistItem } from '#lib/server/db/schema.js';
 import {
 	STATE_COOKIE,
 	VERIFIER_COOKIE,
 	createGoogleClient,
-	fetchGoogleProfile,
-	type GoogleProfile
+	fetchGoogleProfile
 } from '#lib/server/oauth.js';
 import { enforceRateLimit } from '#lib/server/rate-limit.js';
 import { parseFields } from '#lib/server/validation.js';
@@ -23,12 +21,6 @@ const callbackQuery = v.object({
 	code: v.pipe(v.string(), v.minLength(1), v.maxLength(2048)),
 	state: v.pipe(v.string(), v.minLength(1), v.maxLength(256))
 });
-
-/**
- * Placeholder account created by the auth migration to own watchlist rows that
- * predate sign-in. See `claimLegacyItems`.
- */
-const LEGACY_OWNER_ID = '__legacy__';
 
 /**
  * Step 2 of the sign-in flow: Google redirects back here with an authorization
@@ -61,9 +53,20 @@ export const GET: RequestHandler = async (event) => {
 		const accessToken = await google.exchangeCode(code, codeVerifier);
 		const profile = await fetchGoogleProfile(accessToken);
 
-		const userId = await upsertUser(profile);
 		const token = generateSessionToken();
-		setSessionCookie(cookies, token, await createSession(token, userId));
+		const expiresAt = await getDb().transaction(async (tx) => {
+			const [row] = (
+				await tx.execute<{ id: string }>(
+					sql`select nextsode.sign_in_google(${profile.sub}, ${profile.email}, ${profile.name}, ${profile.picture}) as id`
+				)
+			).rows;
+			return createSession(
+				token,
+				{ id: row.id, name: profile.name, email: profile.email, avatarUrl: profile.picture },
+				tx
+			);
+		});
+		setSessionCookie(cookies, token, expiresAt);
 	} catch (err) {
 		console.error('Google sign-in failed:', err);
 		redirect(302, '/?auth=error');
@@ -71,75 +74,3 @@ export const GET: RequestHandler = async (event) => {
 
 	redirect(302, '/');
 };
-
-/**
- * Find the account behind a Google profile, creating it on first sign-in.
- *
- * Name, email and avatar are refreshed on every login so the account chip
- * follows whatever the person currently has on their Google profile.
- */
-async function upsertUser(profile: GoogleProfile): Promise<string> {
-	const db = getDb();
-
-	const [existing] = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.googleId, profile.sub))
-		.limit(1);
-
-	if (existing) {
-		await db
-			.update(user)
-			.set({ email: profile.email, name: profile.name, avatarUrl: profile.picture })
-			.where(eq(user.id, existing.id));
-		return existing.id;
-	}
-
-	const [created] = await db
-		.insert(user)
-		.values({
-			googleId: profile.sub,
-			email: profile.email,
-			name: profile.name,
-			avatarUrl: profile.picture
-		})
-		.returning({ id: user.id });
-
-	await claimLegacyItems(created.id);
-	return created.id;
-}
-
-/**
- * One-time data migration: hand the pre-accounts watchlist to the very first
- * person who signs in — the owner of the deployment.
- *
- * The migration parked those rows under a placeholder account (rather than a
- * dangling id) so the foreign key stays valid in the meantime. Once they are
- * reassigned the placeholder is deleted and this becomes a permanent no-op.
- */
-async function claimLegacyItems(newUserId: string): Promise<void> {
-	const db = getDb();
-
-	const [placeholder] = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.id, LEGACY_OWNER_ID))
-		.limit(1);
-	if (!placeholder) return;
-
-	// Only the very first real account inherits the list; later visitors start
-	// from an empty one.
-	const [{ count }] = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(user)
-		.where(ne(user.id, LEGACY_OWNER_ID));
-	if (Number(count) !== 1) return;
-
-	await db
-		.update(watchlistItem)
-		.set({ userId: newUserId })
-		.where(eq(watchlistItem.userId, LEGACY_OWNER_ID));
-
-	// Safe now that nothing references it — the cascade has nothing left to take.
-	await db.delete(user).where(eq(user.id, LEGACY_OWNER_ID));
-}

@@ -1,6 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getDb } from './db';
-import { user, watchlistItem } from './db/schema';
+import { user } from './db/schema';
+import { withUser } from './db/user';
+import type { SessionUser } from '#lib/types.js';
 import type { CalendarEntry } from '#lib/domain/calendar.js';
 
 /**
@@ -26,9 +28,11 @@ export function generateCalendarToken(): string {
 }
 
 /** Give this account a feed, replacing any it already had. */
-export async function issueCalendarToken(userId: string): Promise<string> {
+export async function issueCalendarToken(viewer: SessionUser): Promise<string> {
 	const token = generateCalendarToken();
-	await getDb().update(user).set({ calendarToken: token }).where(eq(user.id, userId));
+	await withUser(viewer, async (tx) => {
+		await tx.update(user).set({ calendarToken: token }).where(eq(user.id, viewer.id));
+	});
 	return token;
 }
 
@@ -38,8 +42,10 @@ export async function issueCalendarToken(userId: string): Promise<string> {
  * Every existing subscription stops resolving, which is the entire point: this
  * is the undo for a URL that went somewhere it should not have.
  */
-export async function revokeCalendarToken(userId: string): Promise<void> {
-	await getDb().update(user).set({ calendarToken: null }).where(eq(user.id, userId));
+export async function revokeCalendarToken(viewer: SessionUser): Promise<void> {
+	await withUser(viewer, async (tx) => {
+		await tx.update(user).set({ calendarToken: null }).where(eq(user.id, viewer.id));
+	});
 }
 
 /**
@@ -52,24 +58,28 @@ export async function revokeCalendarToken(userId: string): Promise<void> {
 export async function loadCalendarEntries(token: string): Promise<CalendarEntry[] | null> {
 	if (!token) return null;
 
-	const db = getDb();
-	const [owner] = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.calendarToken, token))
-		.limit(1);
-
-	if (!owner) return null;
-
-	return db
-		.select({
-			tmdbId: watchlistItem.tmdbId,
-			title: watchlistItem.title,
-			mediaType: watchlistItem.mediaType,
-			releaseDate: watchlistItem.releaseDate,
-			nextSeasonNumber: watchlistItem.nextSeasonNumber,
-			nextSeasonAirDate: watchlistItem.nextSeasonAirDate
-		})
-		.from(watchlistItem)
-		.where(eq(watchlistItem.userId, owner.id));
+	const rows = (
+		await getDb().execute<{
+			tmdb_id: number | null;
+			title: string;
+			media_type: 'movie' | 'tv';
+			release_date: string | null;
+			next_season_number: number | null;
+			next_season_air_date: string | null;
+		}>(
+			sql`select tmdb_id, title, media_type, release_date::text, next_season_number, next_season_air_date::text from nextsode.calendar_entries(${token})`
+		)
+	).rows;
+	if (rows.length === 0) return null;
+	// A valid empty feed has one null title row, so it stays distinct from a 404.
+	return rows
+		.filter((row) => row.tmdb_id !== null)
+		.map((row) => ({
+			tmdbId: row.tmdb_id!,
+			title: row.title,
+			mediaType: row.media_type,
+			releaseDate: row.release_date,
+			nextSeasonNumber: row.next_season_number,
+			nextSeasonAirDate: row.next_season_air_date
+		}));
 }

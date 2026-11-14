@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestEvent } from './$types';
 import type * as OAuth from '#lib/server/oauth.js';
@@ -70,8 +71,8 @@ beforeEach(async () => {
 	});
 });
 
-afterEach(() => {
-	harness.client.close();
+afterEach(async () => {
+	await harness.close();
 	vi.restoreAllMocks();
 });
 
@@ -115,7 +116,7 @@ describe('Google OAuth callback', () => {
 		expect(createGoogleClient).not.toHaveBeenCalled();
 		expect(fetchGoogleProfile).not.toHaveBeenCalled();
 		expect(cookies.set).not.toHaveBeenCalled();
-		expect(await harness.db.select().from(session)).toHaveLength(0);
+		expect(await harness.admin.select().from(session)).toHaveLength(0);
 	});
 
 	it('rejects a failed token exchange and clears both handshake cookies', async () => {
@@ -132,7 +133,7 @@ describe('Google OAuth callback', () => {
 		expect(exchangeCode).toHaveBeenCalledExactlyOnceWith(CODE, VERIFIER);
 		expect(fetchGoogleProfile).not.toHaveBeenCalled();
 		expect(cookies.set).not.toHaveBeenCalled();
-		expect(await harness.db.select().from(session)).toHaveLength(0);
+		expect(await harness.admin.select().from(session)).toHaveLength(0);
 	});
 
 	it('exchanges the code, fetches the profile and creates a working session', async () => {
@@ -158,6 +159,47 @@ describe('Google OAuth callback', () => {
 		expect(await validateSession(token)).toMatchObject({
 			user: { name: 'Test User', email: 'test@example.test', avatarUrl: null }
 		});
-		expect(await harness.db.select().from(user)).toHaveLength(1);
+		expect(await harness.admin.select().from(user)).toHaveLength(1);
+	});
+});
+
+describe('sign-in transaction', () => {
+	it('rolls back the account when session insertion fails', async () => {
+		await harness.admin.execute(
+			sql`create function nextsode.reject_test_session() returns trigger language plpgsql set search_path = '' as $$ begin raise exception 'session insert refused'; END; $$`
+		);
+		await harness.admin.execute(
+			sql`create trigger reject_test_session before insert on nextsode.session for each row execute function nextsode.reject_test_session()`
+		);
+		const { cookies, requestEvent } = event(`code=${CODE}&state=${STATE}`, STATE, VERIFIER);
+		await expect(GET(requestEvent)).rejects.toMatchObject({
+			status: 302,
+			location: '/?auth=error'
+		});
+		expect(await harness.admin.select().from(user)).toHaveLength(0);
+		expect(await harness.admin.select().from(session)).toHaveLength(0);
+		expect(cookies.set).not.toHaveBeenCalled();
+	});
+	it('refreshes the profile without changing the account on another sign-in', async () => {
+		const first = event(`code=${CODE}&state=${STATE}`, STATE, VERIFIER);
+		await expect(GET(first.requestEvent)).rejects.toMatchObject({ status: 302, location: '/' });
+		const [before] = await harness.admin.select().from(user);
+		vi.mocked(fetchGoogleProfile).mockResolvedValue({
+			sub: 'test-google-user',
+			email: 'new@example.test',
+			name: 'New Name',
+			picture: 'https://example.test/avatar.jpg'
+		});
+		const next = event(`code=${CODE}&state=${STATE}`, STATE, VERIFIER);
+		await expect(GET(next.requestEvent)).rejects.toMatchObject({ status: 302, location: '/' });
+		const accounts = await harness.admin.select().from(user);
+		expect(accounts).toHaveLength(1);
+		expect(accounts[0]).toMatchObject({
+			id: before.id,
+			email: 'new@example.test',
+			name: 'New Name',
+			avatarUrl: 'https://example.test/avatar.jpg'
+		});
+		expect(await harness.admin.select().from(session)).toHaveLength(2);
 	});
 });

@@ -1,11 +1,12 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { getDb } from '../db';
-import { watchlistItem } from '../db/schema';
+import { withUser } from '../db/user';
+import type { SessionUser } from '#lib/types.js';
+import { media, watchlistItem } from '../db/schema';
 import { clampSeasons, deriveWatched } from '#lib/domain/progress.js';
 import { carryBookmark } from '#lib/domain/episodes.js';
 import { isDueForDeletion, type DeletionWindow } from '#lib/domain/deletion.js';
 import { isUpcoming } from '#lib/domain/release.js';
-import { resolveSeasonInfo } from './seasons';
+import { resolveSeasonInfo, type SeasonInfo } from './seasons';
 import { resolveReleaseDate } from './releases';
 import { watchedStamp } from './stamp';
 import { ownedRow } from './owned';
@@ -51,6 +52,47 @@ function needsSeasonRefresh(item: WatchlistRow, today: string): boolean {
 	return item.nextSeasonAirDate !== null && item.nextSeasonAirDate <= today;
 }
 
+function seasonChanges(source: WatchlistRow, fresh: SeasonInfo | null, now: Date) {
+	// Another owner's refresh may already have advanced this shared title. Its
+	// new ceiling must reconcile this owner's progress before auto-deletion.
+	const info =
+		fresh ??
+		(source.mediaType === 'tv' && source.airedSeasons !== null && source.airedSeasons > 0
+			? {
+					totalSeasons: source.totalSeasons,
+					airedSeasons: source.airedSeasons,
+					nextSeasonNumber: source.nextSeasonNumber,
+					nextSeasonAirDate: source.nextSeasonAirDate
+				}
+			: null);
+	if (!info) return null;
+	const metadataChanged =
+		fresh !== null &&
+		Object.entries(info).some(([key, value]) => source[key as keyof SeasonInfo] !== value);
+	const seasonsSeen = clampSeasons(source.seasonsSeen, info.airedSeasons);
+	const watched = deriveWatched(seasonsSeen, info.airedSeasons);
+	const state = {
+		...carryBookmark(source.seasonsSeen, seasonsSeen, source.episodesIntoSeason),
+		watched,
+		watchedAt:
+			fresh || watched !== source.watched
+				? watchedStamp(watched, source.watchedAt, now)
+				: source.watchedAt
+	};
+	const stateChanged = Object.entries(state).some(([key, value]) => {
+		const before = source[key as keyof typeof state];
+		return before instanceof Date && value instanceof Date
+			? before.getTime() !== value.getTime()
+			: before !== value;
+	});
+	if (!metadataChanged && !stateChanged) return null;
+	return {
+		media: metadataChanged ? info : null,
+		item: stateChanged ? state : null,
+		row: { ...info, ...state }
+	};
+}
+
 /**
  * Resolve season data for shows that need it, and return the list with those
  * rows patched.
@@ -61,54 +103,44 @@ function needsSeasonRefresh(item: WatchlistRow, today: string): boolean {
  * one resolves, `airedSeasons` rises above `seasonsSeen`, `deriveWatched` turns
  * false, and the show reappears in "To watch" without anybody doing anything.
  */
-export async function refreshSeasonData(items: WatchlistRow[]): Promise<WatchlistRow[]> {
-	const today = todayIso();
-	const pending = items
-		.filter((item) => needsSeasonRefresh(item, today))
-		.slice(0, BACKFILL_BATCH_SIZE);
-	if (pending.length === 0) return items;
-
-	const resolved = await Promise.all(
-		pending.map(async (item) => ({ id: item.id, info: await resolveSeasonInfo(item.tmdbId) }))
+export async function refreshSeasonData(
+	viewer: SessionUser,
+	items: WatchlistRow[]
+): Promise<WatchlistRow[]> {
+	const now = new Date();
+	const today = todayIso(now);
+	const pending = [
+		...new Map(
+			items.filter((item) => needsSeasonRefresh(item, today)).map((item) => [item.mediaId, item])
+		).values()
+	].slice(0, BACKFILL_BATCH_SIZE);
+	const resolved = new Map(
+		await Promise.all(
+			pending.map(async (item) => [item.mediaId, await resolveSeasonInfo(item.tmdbId)] as const)
+		)
 	);
-
-	const db = getDb();
 	const patches = new Map<string, Partial<WatchlistRow>>();
-
-	await Promise.all(
-		resolved.map(async ({ id, info }) => {
-			if (!info) return;
-
-			const source = items.find((item) => item.id === id);
-			if (!source) return;
-
-			/**
-			 * Progress is re-derived rather than left alone, because a newly aired
-			 * season changes the answer: someone marked "watched" at 3 of 3 is no
-			 * longer watched once a fourth is out. The seen count itself is never
-			 * lowered by intent — only clamped when TMDB says those seasons are gone.
-			 */
-			const seasonsSeen = clampSeasons(source.seasonsSeen, info.airedSeasons);
-			const watched = deriveWatched(seasonsSeen, info.airedSeasons);
-			const patch = {
-				totalSeasons: info.totalSeasons,
-				airedSeasons: info.airedSeasons,
-				nextSeasonNumber: info.nextSeasonNumber,
-				nextSeasonAirDate: info.nextSeasonAirDate,
-				...carryBookmark(source.seasonsSeen, seasonsSeen, source.episodesIntoSeason),
-				watched,
-				watchedAt: watchedStamp(watched, source.watchedAt)
-			};
-
-			patches.set(id, patch);
-			await db.update(watchlistItem).set(patch).where(ownedRow(id, source.userId));
-		})
-	);
-
+	const mediaUpdates = new Map<string, SeasonInfo>();
+	const itemUpdates: {
+		id: string;
+		patch: Pick<WatchlistRow, 'seasonsSeen' | 'episodesIntoSeason' | 'watched' | 'watchedAt'>;
+	}[] = [];
+	for (const source of items) {
+		const change = seasonChanges(source, resolved.get(source.mediaId) ?? null, now);
+		if (!change) continue;
+		patches.set(source.id, change.row);
+		if (change.media) mediaUpdates.set(source.mediaId, change.media);
+		if (change.item) itemUpdates.push({ id: source.id, patch: change.item });
+	}
 	if (patches.size === 0) return items;
-
-	// Patch the in-memory copy too, so the change shows up on this render rather
-	// than only after the visitor happens to reload.
+	await withUser(viewer, async (db) => {
+		for (const [mediaId, patch] of mediaUpdates) {
+			await db.update(media).set(patch).where(eq(media.id, mediaId));
+		}
+		for (const update of itemUpdates) {
+			await db.update(watchlistItem).set(update.patch).where(ownedRow(update.id, viewer.id));
+		}
+	});
 	return items.map((item) => (patches.has(item.id) ? { ...item, ...patches.get(item.id) } : item));
 }
 
@@ -131,46 +163,36 @@ export async function refreshSeasonData(items: WatchlistRow[]): Promise<Watchlis
  * Failures are non-fatal by construction: `resolveReleaseDate` answers null and
  * the row keeps the date it had.
  */
-export async function refreshReleaseDates(items: WatchlistRow[]): Promise<WatchlistRow[]> {
+export async function refreshReleaseDates(
+	viewer: SessionUser,
+	items: WatchlistRow[]
+): Promise<WatchlistRow[]> {
 	const now = new Date();
-	const pending = items
-		.filter((item) => isUpcoming(item.releaseDate, now))
-		.slice(0, BACKFILL_BATCH_SIZE);
-	if (pending.length === 0) return items;
-
+	const pending = [
+		...new Map(
+			items.filter((item) => isUpcoming(item.releaseDate, now)).map((item) => [item.mediaId, item])
+		).values()
+	].slice(0, BACKFILL_BATCH_SIZE);
 	const resolved = await Promise.all(
 		pending.map(async (item) => ({
-			id: item.id,
-			userId: item.userId,
-			current: item.releaseDate,
+			item,
 			answer: await resolveReleaseDate(item.mediaType, item.tmdbId)
 		}))
 	);
-
-	const db = getDb();
-	const patches = new Map<string, string | null>();
-
-	await Promise.all(
-		resolved.map(async ({ id, userId, current, answer }) => {
-			// No answer, or the same answer: nothing to write. Skipping the unchanged
-			// case is what keeps a list of patient titles from issuing a write per
-			// row on every single page load.
-			if (!answer || answer.releaseDate === current) return;
-
-			patches.set(id, answer.releaseDate);
-			await db
-				.update(watchlistItem)
-				.set({ releaseDate: answer.releaseDate })
-				.where(ownedRow(id, userId));
-		})
+	const updates = resolved.flatMap(({ item, answer }) =>
+		!answer || answer.releaseDate === item.releaseDate
+			? []
+			: [{ item, releaseDate: answer.releaseDate }]
 	);
-
-	if (patches.size === 0) return items;
-
-	// Patch the in-memory copy too, so a title that came out early is tickable on
-	// this render rather than only after the visitor happens to reload.
+	if (updates.length === 0) return items;
+	const patches = new Map(updates.map(({ item, releaseDate }) => [item.mediaId, releaseDate]));
+	await withUser(viewer, async (db) => {
+		for (const { item, releaseDate } of updates) {
+			await db.update(media).set({ releaseDate }).where(eq(media.id, item.mediaId));
+		}
+	});
 	return items.map((item) =>
-		patches.has(item.id) ? { ...item, releaseDate: patches.get(item.id) ?? null } : item
+		patches.has(item.mediaId) ? { ...item, releaseDate: patches.get(item.mediaId) ?? null } : item
 	);
 }
 
@@ -188,7 +210,7 @@ export async function refreshReleaseDates(items: WatchlistRow[]): Promise<Watchl
  * an id on its own.
  */
 export async function deleteExpired(
-	userId: string,
+	viewer: SessionUser,
 	items: WatchlistRow[],
 	window: DeletionWindow | null
 ): Promise<WatchlistRow[]> {
@@ -199,9 +221,11 @@ export async function deleteExpired(
 	if (due.length === 0) return items;
 
 	const ids = due.map((item) => item.id);
-	await getDb()
-		.delete(watchlistItem)
-		.where(and(eq(watchlistItem.userId, userId), inArray(watchlistItem.id, ids)));
+	await withUser(viewer, async (db) => {
+		await db
+			.delete(watchlistItem)
+			.where(and(eq(watchlistItem.userId, viewer.id), inArray(watchlistItem.id, ids)));
+	});
 
 	const deleted = new Set(ids);
 	return items.filter((item) => !deleted.has(item.id));

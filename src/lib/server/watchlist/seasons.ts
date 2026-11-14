@@ -1,6 +1,6 @@
 import { getDetails } from '../tmdb';
 import { normalizeAiredSeasons, normalizeTotalSeasons } from '#lib/domain/progress.js';
-import type { MediaType } from '#lib/types.js';
+import type { MediaDetails } from '#lib/types.js';
 
 /**
  * Asking TMDB about a show's seasons, and deciding what that answer means.
@@ -37,6 +37,21 @@ const NO_SEASONS: SeasonInfo = {
 	nextSeasonAirDate: null
 };
 
+export function seasonInfoFromDetails(
+	details: Pick<MediaDetails, 'seasons' | 'airedSeasons' | 'upcomingSeason'>
+): SeasonInfo {
+	const totalSeasons = normalizeTotalSeasons(details.seasons);
+	const airedSeasons = normalizeAiredSeasons(details.airedSeasons);
+	if (totalSeasons === null || airedSeasons === null) return NO_SEASONS;
+
+	return {
+		totalSeasons,
+		airedSeasons,
+		nextSeasonNumber: details.upcomingSeason?.number ?? null,
+		nextSeasonAirDate: details.upcomingSeason?.airDate ?? null
+	};
+}
+
 /** Details for a show, or null when TMDB could not be reached. */
 export async function safeDetails(tmdbId: number, season: number | null = null) {
 	try {
@@ -58,35 +73,9 @@ export async function safeDetails(tmdbId: number, season: number | null = null) 
 export async function resolveSeasonInfo(tmdbId: number): Promise<SeasonInfo | null> {
 	try {
 		const details = await getDetails('tv', tmdbId);
-		const totalSeasons = normalizeTotalSeasons(details.seasons);
-		const airedSeasons = normalizeAiredSeasons(details.airedSeasons);
-		if (totalSeasons === null || airedSeasons === null) return NO_SEASONS;
-
-		return {
-			totalSeasons,
-			airedSeasons,
-			nextSeasonNumber: details.upcomingSeason?.number ?? null,
-			nextSeasonAirDate: details.upcomingSeason?.airDate ?? null
-		};
+		return seasonInfoFromDetails(details);
 	} catch (err) {
 		console.error('Failed to read season data for tv/%d:', tmdbId, err);
 		return null;
 	}
-}
-
-/** Nothing known yet, which is every film and any lookup that failed. */
-const UNRESOLVED: SeasonInfo = {
-	totalSeasons: null,
-	airedSeasons: null,
-	nextSeasonNumber: null,
-	nextSeasonAirDate: null
-};
-
-/**
- * Season data for a title being saved. Films have none, and a failed lookup is
- * non-fatal: the entry is stored without it and the read path repairs it.
- */
-export async function seasonInfoForSave(mediaType: MediaType, tmdbId: number): Promise<SeasonInfo> {
-	if (mediaType !== 'tv') return UNRESOLVED;
-	return (await resolveSeasonInfo(tmdbId)) ?? UNRESOLVED;
 }

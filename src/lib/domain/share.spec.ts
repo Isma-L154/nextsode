@@ -4,8 +4,7 @@ import {
 	describeScope,
 	normalizeShareScope,
 	ownerFirstName,
-	scopeFromChoices,
-	scopeIncludes
+	scopeFromChoices
 } from './share';
 
 describe('normalizeShareScope', () => {
@@ -25,19 +24,6 @@ describe('normalizeShareScope', () => {
 			expect(normalizeShareScope(value)).toBe(DEFAULT_SHARE_SCOPE);
 		}
 		expect(DEFAULT_SHARE_SCOPE).not.toBe('both');
-	});
-});
-
-describe('scopeIncludes', () => {
-	it('shows only what its scope names', () => {
-		expect(scopeIncludes('toWatch', false)).toBe(true);
-		expect(scopeIncludes('toWatch', true)).toBe(false);
-
-		expect(scopeIncludes('watched', true)).toBe(true);
-		expect(scopeIncludes('watched', false)).toBe(false);
-
-		expect(scopeIncludes('both', true)).toBe(true);
-		expect(scopeIncludes('both', false)).toBe(true);
 	});
 });
 

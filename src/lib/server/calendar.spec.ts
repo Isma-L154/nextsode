@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { createTestDatabase, seedUser, type TestDatabase } from './test-db';
-import { user, watchlistItem } from './db/schema';
+import { createTestDatabase, seedUser, seedItems, testUser, type TestDatabase } from './test-db';
+import { user } from './db/schema';
 
 /**
  * The feed's server side, against a real database.
@@ -20,7 +20,7 @@ const { generateCalendarToken, issueCalendarToken, loadCalendarEntries, revokeCa
 	await import('./calendar');
 
 async function saveTitle(userId: string, over: Record<string, unknown> = {}) {
-	await harness.db.insert(watchlistItem).values({
+	await seedItems(harness.admin, {
 		userId,
 		tmdbId: 1,
 		mediaType: 'movie',
@@ -32,8 +32,12 @@ async function saveTitle(userId: string, over: Record<string, unknown> = {}) {
 
 beforeEach(async () => {
 	harness = await createTestDatabase();
-	await seedUser(harness.db);
-	await seedUser(harness.db, { id: 'user-2', googleId: 'google-2', email: 'other@example.com' });
+	await seedUser(harness.admin);
+	await seedUser(harness.admin, {
+		id: '00000000-0000-4000-8000-000000000002',
+		googleId: 'google-2',
+		email: 'other@example.com'
+	});
 });
 
 describe('generateCalendarToken', () => {
@@ -50,19 +54,19 @@ describe('generateCalendarToken', () => {
 
 describe('issueCalendarToken', () => {
 	it('stores the token it hands back', async () => {
-		const token = await issueCalendarToken('user-1');
-		const [row] = await harness.db
+		const token = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
+		const [row] = await harness.admin
 			.select({ calendarToken: user.calendarToken })
 			.from(user)
-			.where(eq(user.id, 'user-1'));
+			.where(eq(user.id, '00000000-0000-4000-8000-000000000001'));
 
 		expect(row.calendarToken).toBe(token);
 	});
 
 	it('replaces the previous token, breaking the old URL', async () => {
-		const first = await issueCalendarToken('user-1');
-		await saveTitle('user-1');
-		const second = await issueCalendarToken('user-1');
+		const first = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
+		await saveTitle('00000000-0000-4000-8000-000000000001');
+		const second = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
 
 		expect(second).not.toBe(first);
 		// The entire point of "get a new link": the old one has to stop working.
@@ -71,12 +75,12 @@ describe('issueCalendarToken', () => {
 	});
 
 	it('leaves other accounts alone', async () => {
-		const mine = await issueCalendarToken('user-1');
-		await issueCalendarToken('user-2');
-		const [row] = await harness.db
+		const mine = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
+		await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000002'));
+		const [row] = await harness.admin
 			.select({ calendarToken: user.calendarToken })
 			.from(user)
-			.where(eq(user.id, 'user-1'));
+			.where(eq(user.id, '00000000-0000-4000-8000-000000000001'));
 
 		expect(row.calendarToken).toBe(mine);
 	});
@@ -84,22 +88,24 @@ describe('issueCalendarToken', () => {
 
 describe('revokeCalendarToken', () => {
 	it('makes the feed unreadable', async () => {
-		const token = await issueCalendarToken('user-1');
-		await revokeCalendarToken('user-1');
+		const token = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
+		await revokeCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
 
 		expect(await loadCalendarEntries(token)).toBeNull();
 	});
 
 	it('can be called on an account that never had one', async () => {
-		await expect(revokeCalendarToken('user-2')).resolves.toBeUndefined();
+		await expect(
+			revokeCalendarToken(testUser('00000000-0000-4000-8000-000000000002'))
+		).resolves.toBeUndefined();
 	});
 });
 
 describe('loadCalendarEntries', () => {
 	it('returns only the token owner’s titles', async () => {
-		const mine = await issueCalendarToken('user-1');
-		await saveTitle('user-1', { title: 'Mine' });
-		await saveTitle('user-2', { title: 'Theirs', tmdbId: 2 });
+		const mine = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
+		await saveTitle('00000000-0000-4000-8000-000000000001', { title: 'Mine' });
+		await saveTitle('00000000-0000-4000-8000-000000000002', { title: 'Theirs', tmdbId: 2 });
 
 		const entries = await loadCalendarEntries(mine);
 
@@ -107,7 +113,7 @@ describe('loadCalendarEntries', () => {
 	});
 
 	it('answers null for a token nobody holds', async () => {
-		await issueCalendarToken('user-1');
+		await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
 
 		// Indistinguishable from a revoked one, on purpose: a different answer
 		// would confirm that a URL was once real.
@@ -119,13 +125,16 @@ describe('loadCalendarEntries', () => {
 		// insurance against a future write path or a hand-edited row. Seeding one
 		// directly is what makes it a guard rather than a comment: without the
 		// early return, an empty request URL would open that account's feed.
-		await harness.db.update(user).set({ calendarToken: '' }).where(eq(user.id, 'user-1'));
+		await harness.admin
+			.update(user)
+			.set({ calendarToken: '' })
+			.where(eq(user.id, '00000000-0000-4000-8000-000000000001'));
 
 		expect(await loadCalendarEntries('')).toBeNull();
 	});
 
 	it('returns an empty list, not null, for an owner with nothing saved', async () => {
-		const token = await issueCalendarToken('user-1');
+		const token = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
 
 		// A working subscription that will fill in later, rather than a 404 the
 		// calendar client may stop retrying.
@@ -133,8 +142,8 @@ describe('loadCalendarEntries', () => {
 	});
 
 	it('carries the fields an event is built from', async () => {
-		const token = await issueCalendarToken('user-1');
-		await saveTitle('user-1', {
+		const token = await issueCalendarToken(testUser('00000000-0000-4000-8000-000000000001'));
+		await saveTitle('00000000-0000-4000-8000-000000000001', {
 			mediaType: 'tv',
 			title: 'Silo',
 			nextSeasonNumber: 3,
@@ -150,4 +159,8 @@ describe('loadCalendarEntries', () => {
 			nextSeasonAirDate: '2026-11-20'
 		});
 	});
+});
+
+afterEach(async () => {
+	await harness?.close();
 });

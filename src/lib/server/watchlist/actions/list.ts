@@ -1,18 +1,10 @@
 import { fail, type Actions } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { eq, sql } from 'drizzle-orm';
-import { getDb } from '../../db';
-import { watchlistItem } from '../../db/schema';
-import {
-	INVALID_FORM,
-	count,
-	mediaType,
-	optionalText,
-	positiveInt,
-	readForm,
-	requiredText,
-	rowId
-} from '../../validation';
+import { eq } from 'drizzle-orm';
+import { withUser } from '../../db/user';
+import { watchlistRows } from '../queries';
+import { media, watchlistItem } from '../../db/schema';
+import { INVALID_FORM, count, mediaType, positiveInt, readForm, rowId } from '../../validation';
 import {
 	clampSeasons,
 	deriveWatched,
@@ -21,7 +13,8 @@ import {
 } from '#lib/domain/progress.js';
 import { resolveEpisodeTarget, seasonBoundary } from '#lib/domain/episodes.js';
 import { canMarkWatched } from '#lib/domain/release.js';
-import { resolveSeasonInfo, safeDetails, seasonInfoForSave } from '../seasons';
+import { resolveSeasonInfo, safeDetails } from '../seasons';
+import { fetchMediaForSave, findTitleForSave, saveWatchlistItem } from '../save';
 import { watchedStamp } from '../stamp';
 import { UNAUTHENTICATED, rowForm } from './shared';
 import { ownedRow } from '../owned';
@@ -33,38 +26,8 @@ import { ownedRow } from '../owned';
  * here — and every statement is scoped by the session's user id.
  */
 
-/**
- * Ceiling on how many titles one account may store.
- *
- * Far above any realistic list, but it stops a signed-in account from growing
- * the shared database without bound — the free Turso tier is a finite resource
- * shared by every user of the deployment.
- */
-const MAX_ITEMS_PER_USER = 5000;
-
-/**
- * What a save sends: the card's own snapshot of the title. The caps are
- * generous multiples of what TMDB returns, and a value past one is refused.
- * The descriptive fields may be empty or absent; TMDB does not always have them.
- */
-const addForm = v.strictObject({
-	tmdbId: positiveInt,
-	mediaType,
-	title: requiredText(300),
-	posterPath: v.optional(
-		v.union([v.literal(''), v.pipe(v.string(), v.regex(/^\/[\w.-]{1,100}$/))]),
-		''
-	),
-	releaseDate: v.optional(v.union([v.literal(''), v.pipe(v.string(), v.isoDate())]), ''),
-	overview: v.optional(optionalText(10_000), ''),
-	voteAverage: v.optional(
-		v.union([
-			v.literal(''),
-			v.pipe(v.string(), v.regex(/^\d{1,2}(\.\d{1,10})?$/), v.transform(Number), v.maxValue(10))
-		]),
-		''
-	)
-});
+// Shared metadata is fetched on the server; the form expresses identity only.
+const addForm = v.strictObject({ tmdbId: positiveInt, mediaType });
 
 const episodeForm = v.strictObject({ id: rowId, season: positiveInt, episode: count });
 
@@ -74,61 +37,37 @@ export const listActions = {
 	/** Save a movie/TV show. Duplicates are silently ignored via the unique index. */
 	add: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
 		const input = await readForm(request, addForm);
 		if (!input) return fail(400, { message: 'Invalid item data.' });
-		const { tmdbId, mediaType, title } = input;
+		const viewer = locals.user;
+		const existing = await findTitleForSave(viewer, input);
+		if (existing.duplicate) return { added: false };
 
-		const db = getDb();
-
-		/**
-		 * One query answers both guards: how full the list is, and whether this
-		 * title is already on it. Checking for the duplicate up front also avoids
-		 * spending a TMDB request on a save that would be discarded anyway.
-		 */
-		const [stats] = await db
-			.select({
-				total: sql<number>`count(*)`,
-				duplicates: sql<number>`sum(case when ${watchlistItem.tmdbId} = ${tmdbId} and ${watchlistItem.mediaType} = ${mediaType} then 1 else 0 end)`
-			})
-			.from(watchlistItem)
-			.where(eq(watchlistItem.userId, locals.user.id));
-
-		if (Number(stats?.duplicates ?? 0) > 0) return { added: false };
-		if (Number(stats?.total ?? 0) >= MAX_ITEMS_PER_USER) {
-			return fail(400, { message: 'Your watchlist is full.' });
+		let metadata: typeof media.$inferInsert | undefined;
+		if (!existing.title) {
+			try {
+				metadata = await fetchMediaForSave(input);
+			} catch {
+				return fail(502, { message: 'Could not reach TMDB. Please try again.' });
+			}
 		}
 
-		await db
-			.insert(watchlistItem)
-			.values({
-				userId: locals.user.id,
-				tmdbId,
-				mediaType,
-				title,
-				posterPath: input.posterPath || null,
-				releaseDate: input.releaseDate || null,
-				overview: input.overview,
-				voteAverage: input.voteAverage === '' ? null : input.voteAverage,
-				...(await seasonInfoForSave(mediaType, tmdbId))
-			})
-			// Backstop for two concurrent saves of the same title: the unique index
-			// is the real guarantee, the check above is just the cheap fast path.
-			.onConflictDoNothing();
-
-		return { added: true };
+		const result = await saveWatchlistItem(viewer, input, existing.title, metadata);
+		if (result === 'full') return fail(400, { message: 'Your watchlist is full.' });
+		return { added: result === 'added' };
 	},
 
 	/** Remove an item from the list. */
 	remove: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
+		const viewer = locals.user;
 		const input = await readForm(request, rowForm);
 		if (!input) return fail(400, INVALID_FORM);
 		const { id } = input;
-
-		await getDb().delete(watchlistItem).where(ownedRow(id, locals.user.id));
-		return { removed: true };
+		return withUser(viewer, async (db) => {
+			await db.delete(watchlistItem).where(ownedRow(id, viewer.id));
+			return { removed: true };
+		});
 	},
 
 	/**
@@ -141,65 +80,54 @@ export const listActions = {
 	 */
 	toggleWatched: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
+		const viewer = locals.user;
 		const input = await readForm(request, rowForm);
 		if (!input) return fail(400, INVALID_FORM);
 		const { id } = input;
+		return withUser(viewer, async (db) => {
+			const [item] = await watchlistRows(db).where(ownedRow(id, viewer.id)).limit(1);
+			if (!item) return fail(404, { message: 'Item not found.' });
 
-		const db = getDb();
-		const [item] = await db
-			.select({
-				title: watchlistItem.title,
-				releaseDate: watchlistItem.releaseDate,
-				watched: watchlistItem.watched,
-				watchedAt: watchlistItem.watchedAt,
-				totalSeasons: watchlistItem.totalSeasons,
-				airedSeasons: watchlistItem.airedSeasons
-			})
-			.from(watchlistItem)
-			.where(ownedRow(id, locals.user.id))
-			.limit(1);
-		if (!item) return fail(404, { message: 'Item not found.' });
+			const watched = !item.watched;
 
-		const watched = !item.watched;
+			/**
+			 * A title that is not out yet cannot be marked watched — the same rule the
+			 * aired-seasons ceiling below already applies to shows, said once more for
+			 * films. The card renders the release date instead of the button, so
+			 * reaching here means a form body that was not built by that card.
+			 *
+			 * Only the way in is guarded. Un-watching stays open so a row saved before
+			 * this rule, or one whose date TMDB has since moved outwards, is never
+			 * stuck claiming something its owner cannot take back.
+			 */
+			if (watched && !canMarkWatched(item.releaseDate)) {
+				return fail(400, { message: `“${item.title}” isn't out yet.` });
+			}
+			// Only aired seasons can be ticked off, so "mark watched" lands on the last
+			// broadcast season rather than on an announced one.
+			const ceiling = item.airedSeasons ?? item.totalSeasons;
 
-		/**
-		 * A title that is not out yet cannot be marked watched — the same rule the
-		 * aired-seasons ceiling below already applies to shows, said once more for
-		 * films. The card renders the release date instead of the button, so
-		 * reaching here means a form body that was not built by that card.
-		 *
-		 * Only the way in is guarded. Un-watching stays open so a row saved before
-		 * this rule, or one whose date TMDB has since moved outwards, is never
-		 * stuck claiming something its owner cannot take back.
-		 */
-		if (watched && !canMarkWatched(item.releaseDate)) {
-			return fail(400, { message: `“${item.title}” isn't out yet.` });
-		}
-		// Only aired seasons can be ticked off, so "mark watched" lands on the last
-		// broadcast season rather than on an announced one.
-		const ceiling = item.airedSeasons ?? item.totalSeasons;
+			/**
+			 * The toggle speaks in whole seasons, so the position lands on a season
+			 * boundary — bookmark included. Without season data there is no counter to
+			 * move and `seasonsSeen` is left exactly as it was: writing a zero there
+			 * would erase progress on a show whose lookup simply has not resolved yet.
+			 */
+			const position = ceiling
+				? seasonBoundary(watched ? ceiling : ceiling - 1)
+				: { episodesIntoSeason: 0 };
 
-		/**
-		 * The toggle speaks in whole seasons, so the position lands on a season
-		 * boundary — bookmark included. Without season data there is no counter to
-		 * move and `seasonsSeen` is left exactly as it was: writing a zero there
-		 * would erase progress on a show whose lookup simply has not resolved yet.
-		 */
-		const position = ceiling
-			? seasonBoundary(watched ? ceiling : ceiling - 1)
-			: { episodesIntoSeason: 0 };
+			await db
+				.update(watchlistItem)
+				.set({
+					watched,
+					watchedAt: watchedStamp(watched, item.watchedAt),
+					...position
+				})
+				.where(ownedRow(id, viewer.id));
 
-		await db
-			.update(watchlistItem)
-			.set({
-				watched,
-				watchedAt: watchedStamp(watched, item.watchedAt),
-				...position
-			})
-			.where(ownedRow(id, locals.user.id));
-
-		return { toggled: true, watched };
+			return { toggled: true, watched };
+		});
 	},
 
 	/**
@@ -212,23 +140,14 @@ export const listActions = {
 	 */
 	setEpisode: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
+		const viewer = locals.user;
 		const input = await readForm(request, episodeForm);
 		if (!input) return fail(400, INVALID_FORM);
 		const { id, season, episode } = input;
 
-		const db = getDb();
-		const [item] = await db
-			.select({
-				tmdbId: watchlistItem.tmdbId,
-				mediaType: watchlistItem.mediaType,
-				watchedAt: watchlistItem.watchedAt,
-				airedSeasons: watchlistItem.airedSeasons,
-				totalSeasons: watchlistItem.totalSeasons
-			})
-			.from(watchlistItem)
-			.where(ownedRow(id, locals.user.id))
-			.limit(1);
+		const [item] = await withUser(viewer, async (db) =>
+			watchlistRows(db).where(ownedRow(id, viewer.id)).limit(1)
+		);
 
 		if (!item) return fail(404, { message: 'Item not found.' });
 		if (item.mediaType !== 'tv') return fail(400, { message: 'Only TV shows track episodes.' });
@@ -251,19 +170,21 @@ export const listActions = {
 		const watched =
 			deriveWatched(target.seasonsSeen, airedSeasons) && target.episodesIntoSeason === 0;
 
-		await db
-			.update(watchlistItem)
-			.set({
-				...target,
-				airedSeasons,
-				totalSeasons: normalizeTotalSeasons(details.seasons) ?? item.totalSeasons,
-				nextSeasonNumber: details.upcomingSeason?.number ?? null,
-				nextSeasonAirDate: details.upcomingSeason?.airDate ?? null,
-				watched,
-				watchedAt: watchedStamp(watched, item.watchedAt)
-			})
-			.where(ownedRow(id, locals.user.id));
-
+		await withUser(viewer, async (db) => {
+			await db
+				.update(media)
+				.set({
+					airedSeasons,
+					totalSeasons: normalizeTotalSeasons(details.seasons) ?? item.totalSeasons,
+					nextSeasonNumber: details.upcomingSeason?.number ?? null,
+					nextSeasonAirDate: details.upcomingSeason?.airDate ?? null
+				})
+				.where(eq(media.id, item.mediaId));
+			await db
+				.update(watchlistItem)
+				.set({ ...target, watched, watchedAt: watchedStamp(watched, item.watchedAt) })
+				.where(ownedRow(id, viewer.id));
+		});
 		return {
 			...target,
 			airedSeasons,
@@ -283,23 +204,14 @@ export const listActions = {
 	 */
 	setSeasons: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-
+		const viewer = locals.user;
 		const input = await readForm(request, seasonsForm);
 		if (!input) return fail(400, INVALID_FORM);
 		const { id, seasons: requested } = input;
 
-		const db = getDb();
-		const [item] = await db
-			.select({
-				tmdbId: watchlistItem.tmdbId,
-				mediaType: watchlistItem.mediaType,
-				watchedAt: watchlistItem.watchedAt,
-				totalSeasons: watchlistItem.totalSeasons,
-				airedSeasons: watchlistItem.airedSeasons
-			})
-			.from(watchlistItem)
-			.where(ownedRow(id, locals.user.id))
-			.limit(1);
+		const [item] = await withUser(viewer, async (db) =>
+			watchlistRows(db).where(ownedRow(id, viewer.id)).limit(1)
+		);
 
 		if (!item) return fail(404, { message: 'Item not found.' });
 		if (item.mediaType !== 'tv') return fail(400, { message: 'Only TV shows track seasons.' });
@@ -327,24 +239,19 @@ export const listActions = {
 		const seasonsSeen = clampSeasons(requested, airedSeasons);
 		const watched = deriveWatched(seasonsSeen, airedSeasons);
 
-		// Only a fresh lookup may touch the descriptive columns — writing them from
-		// a skipped one would blank the row with nulls it never learned.
-		await db
-			.update(watchlistItem)
-			.set({
-				// Named a season, so the position is that season's boundary.
-				...seasonBoundary(seasonsSeen),
-				airedSeasons,
-				watched,
-				watchedAt: watchedStamp(watched, item.watchedAt),
-				...(fresh && {
-					totalSeasons: fresh.totalSeasons,
-					nextSeasonNumber: fresh.nextSeasonNumber,
-					nextSeasonAirDate: fresh.nextSeasonAirDate
+		await withUser(viewer, async (db) => {
+			// Only a fresh lookup may touch the descriptive columns: a skipped one
+			// must not blank the row with nulls it never learned.
+			if (fresh) await db.update(media).set(fresh).where(eq(media.id, item.mediaId));
+			await db
+				.update(watchlistItem)
+				.set({
+					...seasonBoundary(seasonsSeen),
+					watched,
+					watchedAt: watchedStamp(watched, item.watchedAt)
 				})
-			})
-			.where(ownedRow(id, locals.user.id));
-
+				.where(ownedRow(id, viewer.id));
+		});
 		return {
 			seasonsSeen,
 			airedSeasons,

@@ -1,32 +1,31 @@
-import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { getRequestEvent } from '$app/server';
+import type { RequestEvent } from '@sveltejs/kit';
+import { Pool } from 'pg';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
-import { DATABASE_URL, DATABASE_AUTH_TOKEN } from '$app/env/private';
+import { hyperdriveConnectionString } from './hyperdrive';
 
-/**
- * The Drizzle client is created lazily on first use rather than at module load.
- *
- * On Cloudflare Workers, environment variables (via `$env/dynamic/private`) are
- * only populated inside a request context. Reading them at module top level
- * would return `undefined` during the worker's initial evaluation and crash
- * every route, so initialization is deferred until the first query in a request.
- */
-let database: LibSQLDatabase<typeof schema> | undefined;
+export type Database = NodePgDatabase<typeof schema> & { $client: Pool };
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
-export function getDb(): LibSQLDatabase<typeof schema> {
-	if (database) return database;
+// A Worker cannot reuse a connection's I/O from a different request.
+const requests = new WeakMap<RequestEvent, { db: Database; pool: Pool }>();
 
-	// A remote libSQL/Turso database requires an auth token, while a local SQLite
-	// file used during development does not.
-	const isRemote = DATABASE_URL.startsWith('libsql://');
-	if (isRemote && !DATABASE_AUTH_TOKEN) {
-		throw new Error('DATABASE_AUTH_TOKEN is required for remote libSQL databases');
-	}
+export function getDb(): Database {
+	const event = getRequestEvent();
+	const existing = requests.get(event);
+	if (existing) return existing.db;
+	const pool = new Pool({ connectionString: hyperdriveConnectionString(), max: 1 });
+	const db = drizzle(pool, { schema });
+	requests.set(event, { db, pool });
+	return db;
+}
 
-	const client = createClient({
-		url: DATABASE_URL,
-		authToken: DATABASE_AUTH_TOKEN || undefined
-	});
-	database = drizzle(client, { schema });
-	return database;
+export async function closeDb(event: RequestEvent): Promise<void> {
+	const connection = requests.get(event);
+	if (!connection) return;
+	requests.delete(event);
+	const closing = connection.pool.end();
+	if (event.platform?.ctx) event.platform.ctx.waitUntil(closing);
+	else await closing;
 }

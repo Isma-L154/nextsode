@@ -1,198 +1,143 @@
-import { index, integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+import {
+	boolean,
+	check,
+	date,
+	index,
+	integer,
+	pgSchema,
+	real,
+	smallint,
+	text,
+	timestamp,
+	unique,
+	uuid
+} from 'drizzle-orm/pg-core';
 
-/**
- * A person who has signed in with Google.
- *
- * We deliberately store the bare minimum needed to render the account chip and
- * to recognise a returning visitor. No tokens from Google are persisted: the
- * OAuth access token is used once, during the callback, and then discarded.
- */
-export const user = sqliteTable('user', {
-	// Internal identifier, kept independent from Google's so the provider can be
-	// swapped or extended later without rewriting every foreign key.
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-
-	// Google's "sub" claim: stable forever, unlike the email address, which the
-	// user can change. This is what we match on when someone signs in again.
-	googleId: text('google_id').notNull().unique(),
-
-	email: text('email').notNull(),
-	name: text('name').notNull(),
-	avatarUrl: text('avatar_url'),
-
-	/**
-	 * How many days a watched title stays on the list before it is deleted.
-	 *
-	 * Null means the feature is off, which is the default and stays the default:
-	 * quietly clearing someone's list on their behalf is not a thing to opt them
-	 * into, and this one does not keep a copy. See `domain/deletion` for what is
-	 * eligible.
-	 */
-	autoDeleteDays: integer('auto_delete_days'),
-
-	/**
-	 * Secret that makes the calendar feed readable, or null when there is none.
-	 *
-	 * Opt-in: no token exists until somebody asks for one, and regenerating
-	 * replaces it, which is what breaks every subscription made with the old URL.
-	 *
-	 * Stored as-is rather than hashed, unlike `session.id`, and the difference is
-	 * deliberate. A session token is an authentication credential the browser
-	 * already holds a copy of, so the database never needs to reproduce it. A
-	 * feed URL has to be shown again — on the second device, a year later — and a
-	 * hash cannot be shown. The trade is that a database leak exposes feed URLs;
-	 * the mitigations are that the URL grants read-only access to one list and
-	 * that it can be revoked from the UI.
-	 */
-	calendarToken: text('calendar_token').unique(),
-
-	/**
-	 * Secret that makes this list readable as a web page, or null when there is
-	 * none.
-	 *
-	 * Same shape and same trade-offs as `calendarToken`, and deliberately not the
-	 * same value: the two are handed to different audiences and have to be
-	 * revocable apart. Turning off a link sent to one friend must not
-	 * unsubscribe a calendar, and rolling the calendar over must not break a page
-	 * somebody bookmarked.
-	 *
-	 * Stored as-is rather than hashed, for the reason spelled out above: a URL
-	 * that has to be shown again cannot be a hash.
-	 */
-	shareToken: text('share_token').unique(),
-
-	/**
-	 * Which part of the list that token shows: `toWatch`, `watched` or `both`.
-	 *
-	 * Kept beside the token rather than encoded into it, so changing what is
-	 * shared does not invalidate a link that has already been sent. Null means
-	 * the same as no token — nothing is shared — and the column is only read
-	 * once a token exists; see `domain/share` for the values and the default.
-	 */
-	shareScope: text('share_scope'),
-
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
+export const nextsode = pgSchema('nextsode');
+const timestamps = () => ({
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
 
-/**
- * An active browser session.
- *
- * `id` is the SHA-256 hash of the opaque token handed to the browser — never the
- * token itself. A leaked database therefore cannot be replayed as a valid
- * cookie, the same reasoning behind hashing passwords.
- */
-export const session = sqliteTable(
-	'session',
-	{
-		id: text('id').primaryKey(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
-		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
-	},
-	(t) => [index('idx_session_user').on(t.userId)]
-);
+// Each private row has one owner and only that owner writes it; created_by and
+// updated_by would repeat that relationship. Media contains only public TMDB data.
+export const user = nextsode
+	.table(
+		'app_user',
+		{
+			id: uuid('id').primaryKey().defaultRandom(),
+			// Google's stable sub claim survives email changes.
+			googleId: text('google_id').notNull().unique(),
+			email: text('email').notNull(),
+			name: text('name').notNull(),
+			avatarUrl: text('avatar_url'),
+			// Null keeps deletion opt-in; there is no archive to recover a removed title.
+			autoDeleteDays: smallint('auto_delete_days'),
+			// These URLs must be shown again on another device, so unlike session tokens
+			// they cannot be hashed. Separate tokens let owners revoke each audience apart.
+			calendarToken: text('calendar_token').unique(),
+			shareToken: text('share_token').unique(),
+			shareScope: text('share_scope'),
+			...timestamps()
+		},
+		(t) => [
+			check('app_user_auto_delete_days_check', sql`${t.autoDeleteDays} in (7, 30, 90)`),
+			check('app_user_share_scope_check', sql`${t.shareScope} in ('toWatch', 'watched', 'both')`),
+			check(
+				'app_user_share_scope_with_token',
+				sql`${t.shareToken} is null or ${t.shareScope} is not null`
+			)
+		]
+	)
+	.enableRLS();
 
-/**
- * A single movie or TV show on a user's list.
- *
- * TMDB is the source of truth for media metadata, but we persist a lightweight,
- * display-ready snapshot here so the list renders instantly without an extra
- * round-trip to the TMDB API on every page load.
- */
-export const watchlistItem = sqliteTable(
-	'watchlist_item',
-	{
-		// Internal, app-generated identifier (stable regardless of TMDB changes).
-		id: text('id')
-			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
+// Only the SHA-256 hash is stored: a database dump cannot replay the cookie.
+export const session = nextsode
+	.table(
+		'session',
+		{
+			id: text('id').primaryKey(),
+			userId: uuid('user_id')
+				.notNull()
+				.references(() => user.id, { onDelete: 'cascade' }),
+			expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+			createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+		},
+		(t) => [
+			index('session_user_id_idx').on(t.userId),
+			check('session_id_hash_check', sql`${t.id} ~ '^[0-9a-f]{64}$'`)
+		]
+	)
+	.enableRLS();
 
-		// Owner of the entry. Every read and write is scoped by this column, which
-		// is what keeps one person's list invisible to everybody else.
-		userId: text('user_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
+export const media = nextsode
+	.table(
+		'media',
+		{
+			id: uuid('id').primaryKey().defaultRandom(),
+			tmdbId: integer('tmdb_id').notNull(),
+			mediaType: text('media_type', { enum: ['movie', 'tv'] }).notNull(),
+			title: text('title').notNull(),
+			posterPath: text('poster_path'),
+			releaseDate: date('release_date', { mode: 'string' }),
+			overview: text('overview'),
+			voteAverage: real('vote_average'),
+			/**
+			 * Three states: null means not known yet, 0 means TMDB has no season data
+			 * (NO_SEASON_DATA stops endless backfill), and a positive number is its count.
+			 * Aired seasons exclude announcements: progress must never reach an unaired
+			 * season. The next premiere's date schedules the read-path refresh.
+			 */
+			totalSeasons: smallint('total_seasons'),
+			airedSeasons: smallint('aired_seasons'),
+			nextSeasonNumber: smallint('next_season_number'),
+			nextSeasonAirDate: date('next_season_air_date', { mode: 'string' }),
+			...timestamps()
+		},
+		(t) => [
+			unique('media_tmdb_id_media_type_unique').on(t.tmdbId, t.mediaType),
+			check('media_tmdb_id_check', sql`${t.tmdbId} > 0`),
+			check('media_media_type_check', sql`${t.mediaType} in ('movie', 'tv')`),
+			check('media_vote_average_check', sql`${t.voteAverage} between 0 and 10`),
+			check('media_total_seasons_check', sql`${t.totalSeasons} >= 0`),
+			check('media_aired_seasons_check', sql`${t.airedSeasons} >= 0`),
+			check('media_next_season_number_check', sql`${t.nextSeasonNumber} > 0`)
+		]
+	)
+	.enableRLS();
 
-		// TMDB identity. The triple (userId, tmdbId, mediaType) uniquely identifies
-		// a title within a list, preventing the same show from being saved twice —
-		// while still allowing two different users to save the same title.
-		tmdbId: integer('tmdb_id').notNull(),
-		mediaType: text('media_type', { enum: ['movie', 'tv'] }).notNull(),
-
-		// Cached metadata snapshot from TMDB.
-		title: text('title').notNull(),
-		posterPath: text('poster_path'),
-		releaseDate: text('release_date'),
-		overview: text('overview'),
-		voteAverage: real('vote_average'),
-
-		// User state.
-		watched: integer('watched', { mode: 'boolean' }).notNull().default(false),
-
-		/**
-		 * TV progress: completed seasons, plus a bookmark inside the next one.
-		 *
-		 * Two integers rather than a row per episode, because series are watched in
-		 * order and a position on a line is all that describes — no join table, no
-		 * extra query on the list.
-		 *
-		 * `totalSeasons` is TMDB's count, snapshotted on save. Three states, all
-		 * meaningful: a positive number is the real count, null means "not known
-		 * yet" (every movie, plus any show still awaiting the read-path backfill),
-		 * and 0 is the sentinel for "TMDB has no season data for this title" —
-		 * which stops that backfill retrying forever. See `NO_SEASON_DATA`.
-		 *
-		 * `airedSeasons` is the one progress is measured against, and it is
-		 * deliberately not the same number: TMDB counts announced seasons in its
-		 * total, so a show with three aired seasons and a fourth dated for next
-		 * year would otherwise be tickable to "fully watched" today.
-		 *
-		 * `nextSeasonNumber` / `nextSeasonAirDate` describe the next season still
-		 * to premiere. The date is also what schedules the refresh: once it is in
-		 * the past, the entry is re-read from TMDB, `airedSeasons` goes up, and the
-		 * show drops back out of "watched" on its own.
-		 */
-		seasonsSeen: integer('seasons_seen').notNull().default(0),
-		/**
-		 * Episodes watched of the season *after* `seasonsSeen` — the bookmark.
-		 *
-		 * Always below that season's length: finishing the last episode rolls into
-		 * `seasonsSeen` instead, so a given position has exactly one encoding. See
-		 * `domain/episodes`.
-		 */
-		episodesIntoSeason: integer('episodes_into_season').notNull().default(0),
-		totalSeasons: integer('total_seasons'),
-		airedSeasons: integer('aired_seasons'),
-		nextSeasonNumber: integer('next_season_number'),
-		nextSeasonAirDate: text('next_season_air_date'),
-
-		/**
-		 * When the entry became watched.
-		 *
-		 * This is the clock auto-deletion runs on, so it is stamped on the
-		 * transition into watched and cleared on the way out — `addedAt` cannot
-		 * stand in for it, since when you saved something says nothing about when
-		 * you got round to it. Tapping "Keep" restamps it, which is how a warning
-		 * is answered without turning the feature off.
-		 */
-		watchedAt: integer('watched_at', { mode: 'timestamp' }),
-
-		addedAt: integer('added_at', { mode: 'timestamp' })
-			.notNull()
-			.$defaultFn(() => new Date())
-	},
-	(t) => [
-		unique('uq_user_tmdb_media').on(t.userId, t.tmdbId, t.mediaType),
-		index('idx_watchlist_user').on(t.userId)
-	]
-);
+export const watchlistItem = nextsode
+	.table(
+		'watchlist_item',
+		{
+			id: uuid('id').primaryKey().defaultRandom(),
+			userId: uuid('user_id')
+				.notNull()
+				.references(() => user.id, { onDelete: 'cascade' }),
+			mediaId: uuid('media_id')
+				.notNull()
+				.references(() => media.id, { onDelete: 'restrict' }),
+			watched: boolean('watched').notNull().default(false),
+			seasonsSeen: smallint('seasons_seen').notNull().default(0),
+			// A finished season rolls into seasonsSeen, leaving one encoding per position.
+			episodesIntoSeason: smallint('episodes_into_season').notNull().default(0),
+			// The deletion clock follows completion, not the day the title was saved.
+			watchedAt: timestamp('watched_at', { withTimezone: true }),
+			addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+			updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+		},
+		(t) => [
+			unique('watchlist_item_user_media_unique').on(t.userId, t.mediaId),
+			index('watchlist_item_media_id_idx').on(t.mediaId),
+			check('watchlist_item_seasons_seen_check', sql`${t.seasonsSeen} >= 0`),
+			check('watchlist_item_episodes_into_season_check', sql`${t.episodesIntoSeason} >= 0`)
+		]
+	)
+	.enableRLS();
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
-export type WatchlistItem = typeof watchlistItem.$inferSelect;
-export type NewWatchlistItem = typeof watchlistItem.$inferInsert;
+// The UI keeps the flattened read model while persistence is normalized.
+export type WatchlistItem = typeof watchlistItem.$inferSelect &
+	Omit<typeof media.$inferSelect, 'id' | 'createdAt' | 'updatedAt'>;

@@ -21,7 +21,7 @@ flowchart LR
   callback -->|POST code + verifier + client secret| token[oauth2.googleapis.com/token]
   token -->|access_token| callback
   callback -->|Bearer access_token| userinfo[openidconnect.googleapis.com/userinfo]
-  callback --> db[(Turso: user, session)]
+  callback --> db[(Supabase Postgres: nextsode.app_user, nextsode.session)]
 ```
 
 ## Threats

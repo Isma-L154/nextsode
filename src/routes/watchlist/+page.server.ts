@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { getDb } from '#lib/server/db/index.js';
+import { withUser } from '#lib/server/db/user.js';
 import { user } from '#lib/server/db/schema.js';
 import {
 	deleteExpired,
@@ -32,16 +32,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	}
 
-	const [row] = await getDb()
-		.select({
-			autoDeleteDays: user.autoDeleteDays,
-			calendarToken: user.calendarToken,
-			shareToken: user.shareToken,
-			shareScope: user.shareScope
-		})
-		.from(user)
-		.where(eq(user.id, locals.user.id))
-		.limit(1);
+	const viewer = locals.user;
+	const [row] = await withUser(viewer, async (db) =>
+		db
+			.select({
+				autoDeleteDays: user.autoDeleteDays,
+				calendarToken: user.calendarToken,
+				shareToken: user.shareToken,
+				shareScope: user.shareScope
+			})
+			.from(user)
+			.where(eq(user.id, viewer.id))
+			.limit(1)
+	);
 	const autoDeleteDays = normalizeDeletionWindow(row?.autoDeleteDays);
 
 	/**
@@ -59,8 +62,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	 * and saved again.
 	 */
 	const items = await deleteExpired(
-		locals.user.id,
-		await refreshReleaseDates(await refreshSeasonData(await loadWatchlist(locals.user.id))),
+		viewer,
+		await refreshReleaseDates(viewer, await refreshSeasonData(viewer, await loadWatchlist(viewer))),
 		autoDeleteDays
 	);
 

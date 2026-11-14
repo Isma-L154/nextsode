@@ -41,14 +41,14 @@ export const sharingActions = {
 	 */
 	issueCalendarFeed: async ({ locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-		await issueCalendarToken(locals.user.id);
+		await issueCalendarToken(locals.user);
 		return { calendar: 'issued' as const };
 	},
 
 	/** Turn the calendar feed off, invalidating every subscription to it. */
 	revokeCalendarFeed: async ({ locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-		await revokeCalendarToken(locals.user.id);
+		await revokeCalendarToken(locals.user);
 		return { calendar: 'revoked' as const };
 	},
 
@@ -68,7 +68,7 @@ export const sharingActions = {
 		if (scope === 'invalid') return fail(400, INVALID_FORM);
 		if (!scope) return fail(400, { message: 'Choose what to share first.' });
 
-		await issueShareToken(locals.user.id, scope);
+		await issueShareToken(locals.user, scope);
 		return { share: 'issued' as const };
 	},
 
@@ -86,14 +86,14 @@ export const sharingActions = {
 		if (scope === 'invalid') return fail(400, INVALID_FORM);
 		if (!scope) return fail(400, { message: 'Choose what to share first.' });
 
-		await setShareScope(locals.user.id, scope);
+		await setShareScope(locals.user, scope);
 		return { share: 'updated' as const };
 	},
 
 	/** Turn the share link off, so every copy of the URL stops resolving. */
 	revokeShareLink: async ({ locals }) => {
 		if (!locals.user) return fail(401, UNAUTHENTICATED);
-		await revokeShareToken(locals.user.id);
+		await revokeShareToken(locals.user);
 		return { share: 'revoked' as const };
 	}
 } satisfies Actions;
