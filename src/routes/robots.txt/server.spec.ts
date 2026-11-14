@@ -90,7 +90,9 @@ describe('robots.txt', () => {
 		'GPTBot',
 		'CCBot',
 		'Amazonbot',
-		'Bytespider'
+		'Bytespider',
+		'ElevenlabsCrawler',
+		'RiverBot'
 	])('excludes %s from the whole site', async (userAgent) => {
 		const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
 		const group = parseGroups(body).find(({ userAgents }) => userAgents.includes(userAgent));
@@ -98,14 +100,19 @@ describe('robots.txt', () => {
 		expect(group?.rules).toEqual(['Disallow: /']);
 	});
 
-	it.each(['Googlebot', 'Bingbot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot'])(
-		'keeps %s under the wildcard rules',
-		async (userAgent) => {
-			const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
+	it.each([
+		'Googlebot',
+		'Bingbot',
+		'OAI-SearchBot',
+		'ChatGPT-User',
+		'PerplexityBot',
+		'Amzn-SearchBot',
+		'ExaSearchBot'
+	])('keeps %s under the wildcard rules', async (userAgent) => {
+		const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
 
-			expect(body).not.toContain(userAgent);
-		}
-	);
+		expect(body).not.toContain(userAgent);
+	});
 
 	it('is served as plain text', async () => {
 		const { setHeaders } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');

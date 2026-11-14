@@ -42,6 +42,8 @@ const RULES = [
 	'User-agent: CCBot',
 	'User-agent: Amazonbot',
 	'User-agent: Bytespider',
+	'User-agent: ElevenlabsCrawler',
+	'User-agent: RiverBot',
 	'Disallow: /'
 ];
 
