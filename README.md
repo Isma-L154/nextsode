@@ -87,9 +87,6 @@ starting the container; the script loads it automatically.
 | `GOOGLE_CLIENT_ID`     | OAuth 2.0 client ID.                                                                             |
 | `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret.                                                                         |
 | `OAUTH_ORIGIN`         | _Optional._ Public origin for the redirect URI; derived from the request if unset.               |
-| `TURSO_DATABASE_URL`   | Cutover only: legacy source connection for the copy script.                                      |
-| `TURSO_AUTH_TOKEN`     | Cutover only: legacy source token for the copy script.                                           |
-| `TARGET_DATABASE_URL`  | Cutover only: target owner connection for the copy script.                                       |
 
 > ⚠️ `.env` is git-ignored and must never be committed.
 
@@ -139,8 +136,7 @@ First-time setup:
 1. Apply `npm run db:migrate` with `DATABASE_URL` set to the Supabase direct connection as the schema owner, `postgres`, ending in `?uselibpqcompat=true&sslmode=require` (Supabase's certificate chain is not in Node's trust store, and plain connections are refused). Migrations use only `nextsode`, including the migrations journal; they do not touch `public` or Supabase-managed schemas.
 2. Set `nextsode_app`'s password and `LOGIN` outside migrations, ideally as a SCRAM-SHA-256 verifier computed locally so the plain password never reaches the database. It must remain a non-owner role without `BYPASSRLS` or superuser privileges. Enable SSL enforcement on the project.
 3. Create a Hyperdrive configuration in Cloudflare on the direct connection (not the pooler) with that app role and query caching disabled, so session and link revocation take effect immediately, and put its id in `wrangler.jsonc`. The driver needs the `nodejs_compat` flag already configured there.
-4. Stop writes to the old deployment and run `node scripts/copy-turso-to-postgres.ts` once. Supply `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and `TARGET_DATABASE_URL` (owner) through environment variables. The script writes no files, copies in one transaction, refuses an existing target account, preserves session hashes and prints source and target counts before committing. Do a local rehearsal and inspect sampled rows before the production cutover.
-5. Set the production secrets in Cloudflare; database credentials belong to Hyperdrive, not Worker secrets:
+4. Set the production secrets in Cloudflare; database credentials belong to Hyperdrive, not Worker secrets:
 
 ```bash
 npx wrangler secret put TMDB_ACCESS_TOKEN
