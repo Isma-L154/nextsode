@@ -75,11 +75,6 @@
 			<form method="POST" action="?/add" use:enhance={onSubmit}>
 				<input type="hidden" name="tmdbId" value={item.tmdbId} />
 				<input type="hidden" name="mediaType" value={item.mediaType} />
-				<input type="hidden" name="title" value={item.title} />
-				<input type="hidden" name="posterPath" value={item.posterPath ?? ''} />
-				<input type="hidden" name="releaseDate" value={item.releaseDate ?? ''} />
-				<input type="hidden" name="overview" value={item.overview ?? ''} />
-				<input type="hidden" name="voteAverage" value={item.voteAverage ?? ''} />
 				<button
 					type="submit"
 					class="flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-brand text-xs font-semibold text-white shadow-sm shadow-brand/30 transition-colors duration-200 hover:bg-brand-hi active:scale-[0.98]"
