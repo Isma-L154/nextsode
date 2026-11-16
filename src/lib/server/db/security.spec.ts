@@ -37,6 +37,139 @@ afterEach(async () => {
 	await harness?.close();
 });
 
+describe('backup role', () => {
+	beforeEach(async () => {
+		// Non-superuser creators receive ADMIN but not SET on newly created roles.
+		await harness.admin.execute(sql`grant nextsode_backup to current_user with set true`);
+	});
+
+	it('bypasses RLS without administrative privileges or object ownership', async () => {
+		await harness.admin.transaction(async (tx) => {
+			await tx.execute(sql`set local role nextsode_backup`);
+			const [role] = (
+				await tx.execute(sql`
+				select rolbypassrls, rolsuper, rolcreatedb, rolcreaterole, rolinherit
+				from pg_catalog.pg_roles where rolname = current_user`)
+			).rows;
+			expect(role).toEqual({
+				rolbypassrls: true,
+				rolsuper: false,
+				rolcreatedb: false,
+				rolcreaterole: false,
+				rolinherit: false
+			});
+			const owned = (
+				await tx.execute(sql`
+				select c.relname as name from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+				where n.nspname = 'nextsode' and c.relowner = current_user::regrole
+				union all select p.proname from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+				where n.nspname = 'nextsode' and p.proowner = current_user::regrole
+				union all select t.typname from pg_catalog.pg_type t join pg_catalog.pg_namespace n on n.oid = t.typnamespace
+				where n.nspname = 'nextsode' and t.typowner = current_user::regrole
+				union all select nspname from pg_catalog.pg_namespace
+				where nspname = 'nextsode' and nspowner = current_user::regrole`)
+			).rows;
+			expect(owned).toEqual([]);
+		});
+	});
+
+	it('reads every owner without an identity with row_security off', async () => {
+		await seedItem(harness.admin, {
+			userId: alice.id,
+			tmdbId: 2,
+			mediaType: 'movie',
+			title: 'Alice only'
+		});
+		await harness.admin
+			.insert(session)
+			.values({ id: 'a'.repeat(64), userId: alice.id, expiresAt: new Date() });
+		await harness.admin.transaction(async (tx) => {
+			await tx.execute(sql`set local role nextsode_backup`);
+			await tx.execute(sql`set local row_security = off`);
+			const [identity] = (
+				await tx.execute(sql`select nullif(current_setting('nextsode.user_id', true), '') as id`)
+			).rows;
+			expect(identity.id).toBeNull();
+			for (const [table, owner] of [
+				[user, user.id],
+				[session, session.userId],
+				[watchlistItem, watchlistItem.userId]
+			] as const) {
+				expect(await tx.select({ owner }).from(table).orderBy(owner)).toEqual([
+					{ owner: alice.id },
+					{ owner: bob.id }
+				]);
+			}
+			expect(await tx.select({ title: media.title }).from(media).orderBy(media.tmdbId)).toEqual([
+				{ title: 'Bob only' },
+				{ title: 'Alice only' }
+			]);
+			expect(
+				(await tx.execute(sql`select * from nextsode.__drizzle_migrations`)).rows.length
+			).toBeGreaterThan(0);
+			expect(
+				(await tx.execute(sql`select last_value from nextsode.__drizzle_migrations_id_seq`)).rows
+			).toHaveLength(1);
+		});
+	});
+
+	it.each(['app_user', 'session', 'watchlist_item', 'media'])(
+		'denies all writes to %s',
+		async (name) => {
+			const table = sql.identifier(name);
+			for (const query of [
+				sql`insert into nextsode.${table} default values`,
+				sql`update nextsode.${table} set id = id`,
+				sql`delete from nextsode.${table}`,
+				sql`truncate nextsode.${table} cascade`
+			]) {
+				await expect(
+					harness.admin.transaction(async (tx) => {
+						await tx.execute(sql`set local role nextsode_backup`);
+						await tx.execute(query);
+					})
+				).rejects.toMatchObject({
+					cause: { code: '42501', message: expect.stringContaining('permission denied') }
+				});
+			}
+		}
+	);
+
+	it('denies the SECURITY DEFINER functions', async () => {
+		for (const query of [
+			sql`select * from nextsode.find_session('x')`,
+			sql`select nextsode.sign_in_google('x', 'x', 'x', null)`,
+			sql`select * from nextsode.shared_list('x')`,
+			sql`select * from nextsode.calendar_entries('x')`
+		]) {
+			await expect(
+				harness.admin.transaction(async (tx) => {
+					await tx.execute(sql`set local role nextsode_backup`);
+					await tx.execute(query);
+				})
+			).rejects.toMatchObject({
+				cause: { code: '42501', message: expect.stringContaining('permission denied') }
+			});
+		}
+	});
+
+	it('reads future tables and sequences through default privileges', async () => {
+		await harness.admin.execute(sql`create table nextsode.backup_probe (id serial primary key)`);
+		await harness.admin.execute(sql`alter table nextsode.backup_probe enable row level security`);
+		await harness.admin.execute(sql`insert into nextsode.backup_probe default values`);
+		await harness.admin.transaction(async (tx) => {
+			await tx.execute(sql`set local role nextsode_backup`);
+			await tx.execute(sql`set local row_security = off`);
+			expect((await tx.execute(sql`select * from nextsode.backup_probe`)).rows).toEqual([
+				{ id: 1 }
+			]);
+			expect(
+				(await tx.execute(sql`select last_value from nextsode.backup_probe_id_seq`)).rows
+			).toEqual([{ last_value: '1' }]);
+		});
+	});
+});
+
 describe('database isolation', () => {
 	it('hides other owners and refuses their updates and deletes', async () => {
 		await harness.db.transaction(async (tx) => {
