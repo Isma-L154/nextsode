@@ -134,7 +134,7 @@ creates a pool with at most one connection and closes it after the response.
 First-time setup:
 
 1. Apply `npm run db:migrate` with `DATABASE_URL` set to the Supabase direct connection as the schema owner, `postgres`, ending in `?uselibpqcompat=true&sslmode=require` (Supabase's certificate chain is not in Node's trust store, and plain connections are refused). Migrations use only `nextsode`, including the migrations journal; they do not touch `public` or Supabase-managed schemas.
-2. Set `nextsode_app`'s password and `LOGIN` outside migrations, ideally as a SCRAM-SHA-256 verifier computed locally so the plain password never reaches the database. It must remain a non-owner role without `BYPASSRLS` or superuser privileges. Enable SSL enforcement on the project.
+2. Set `LOGIN` and passwords for `nextsode_app` and `nextsode_backup` by hand outside migrations, using SCRAM-SHA-256 verifiers computed locally so plain passwords never reach the database. Both must remain non-owner roles without superuser, database-creation or role-creation privileges. `nextsode_app` must stay without `BYPASSRLS`; `nextsode_backup` must keep only schema `USAGE`, table and sequence `SELECT`, and `BYPASSRLS`, with `NOINHERIT` and no write or function access. Enable SSL enforcement on the project.
 3. Create a Hyperdrive configuration in Cloudflare on the direct connection (not the pooler) with that app role and query caching disabled, so session and link revocation take effect immediately, and put its id in `wrangler.jsonc`. The driver needs the `nodejs_compat` flag already configured there.
 4. Set the production secrets in Cloudflare; database credentials belong to Hyperdrive, not Worker secrets:
 
@@ -145,6 +145,29 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
 
 To deploy by hand: `npm run build && npx wrangler deploy`.
+
+### Backups
+
+A separate private repository runs `pg_dump --format=custom --schema=nextsode`
+as `nextsode_backup` twice a month, encrypts with age and keeps the latest two
+backups. A daily lightweight `SELECT` keeps the database active. The backup role
+bypasses RLS so every row is included; future tables and sequences created by
+the migration owner inherit its `SELECT` grants.
+
+For a restore drill, decrypt locally and restore into a new scratch database
+in the `nextsode-pg` container after running local migrations to create the roles:
+
+```bash
+age -d -i <key file> nextsode.dump.age > nextsode.dump
+docker exec nextsode-pg createdb -U postgres nextsode_restore
+docker cp nextsode.dump nextsode-pg:/tmp/nextsode.dump
+docker exec nextsode-pg pg_restore --exit-on-error -U postgres --dbname=nextsode_restore /tmp/nextsode.dump
+docker exec nextsode-pg psql -U postgres -d nextsode_restore -c "SELECT 'app_user' AS table_name, count(*) FROM nextsode.app_user UNION ALL SELECT 'session', count(*) FROM nextsode.session UNION ALL SELECT 'watchlist_item', count(*) FROM nextsode.watchlist_item UNION ALL SELECT 'media', count(*) FROM nextsode.media;"
+```
+
+Replace `<key file>` with the quoted path to the age identity file. Run the same
+count query in production and compare all four totals, accounting for changes
+since the dump.
 
 ## Security
 

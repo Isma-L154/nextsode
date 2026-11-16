@@ -15,6 +15,13 @@
       "when": 1794690349943,
       "tag": "0001_security",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794778870076,
+      "tag": "0002_backup_role",
+      "breakpoints": true
     }
   ]
 }
