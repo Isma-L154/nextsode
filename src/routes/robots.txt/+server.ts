@@ -44,6 +44,7 @@ const RULES = [
 	'User-agent: Bytespider',
 	'User-agent: ElevenlabsCrawler',
 	'User-agent: RiverBot',
+	'User-agent: meta-externalagent',
 	'Disallow: /'
 ];
 
