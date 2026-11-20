@@ -92,7 +92,8 @@ describe('robots.txt', () => {
 		'Amazonbot',
 		'Bytespider',
 		'ElevenlabsCrawler',
-		'RiverBot'
+		'RiverBot',
+		'meta-externalagent'
 	])('excludes %s from the whole site', async (userAgent) => {
 		const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
 		const group = parseGroups(body).find(({ userAgents }) => userAgents.includes(userAgent));
@@ -107,7 +108,9 @@ describe('robots.txt', () => {
 		'ChatGPT-User',
 		'PerplexityBot',
 		'Amzn-SearchBot',
-		'ExaSearchBot'
+		'ExaSearchBot',
+		'facebookexternalhit',
+		'meta-externalfetcher'
 	])('keeps %s under the wildcard rules', async (userAgent) => {
 		const { body } = await fetchRobots('https://nextsode.cloudils.com/robots.txt');
 
